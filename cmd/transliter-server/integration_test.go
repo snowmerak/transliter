@@ -26,25 +26,40 @@ const (
 )
 
 // catalogID -> preferred provider model ids on macmini:1234 (first match wins).
-var hyIntegrationCases = []struct {
+var integrationModelCases = []struct {
 	name               string
 	catalogModel       string
 	providerCandidates []string
 }{
 	{
-		name:               "1.8b",
+		name:               "hymt2-1.8b",
 		catalogModel:       "hymt2-1.8b",
 		providerCandidates: []string{"hy-mt2-1.8b"},
 	},
 	{
-		name:               "7b",
+		name:               "hymt2-7b",
 		catalogModel:       "hymt2-7b",
 		providerCandidates: []string{"hy-mt2-7b"},
 	},
 	{
-		name:               "30b-a3b",
+		name:               "hymt2-30b-a3b",
 		catalogModel:       "hymt2-30b-a3b",
 		providerCandidates: []string{"hy-mt2-30b-a3b-mlx", "hy-mt2-30b-a3b"},
+	},
+	{
+		name:               "translategemma-4b",
+		catalogModel:       "translategemma-4b",
+		providerCandidates: []string{"translategemma-4b-it", "translategemma-4b"},
+	},
+	{
+		name:               "translategemma-12b",
+		catalogModel:       "translategemma-12b",
+		providerCandidates: []string{"translategemma-12b-it", "translategemma-12b"},
+	},
+	{
+		name:               "translategemma-27b",
+		catalogModel:       "translategemma-27b",
+		providerCandidates: []string{"translategemma-27b-it", "translategemma-27b"},
 	},
 }
 
@@ -187,11 +202,11 @@ func TestIntegrationTranslationJobDefaultBackends(t *testing.T) {
 	}
 
 	ran := 0
-	for _, tc := range hyIntegrationCases {
+	for _, tc := range integrationModelCases {
 		tc := tc
 		providerModel, ok := resolveProviderModel(available, tc.providerCandidates)
 		if !ok {
-			t.Logf("skip %s: none of %v present on %s", tc.name, tc.providerCandidates, integrationBaseURL)
+			t.Logf("skip %s: provider not mounted (candidates=%v on %s)", tc.name, tc.providerCandidates, integrationBaseURL)
 			continue
 		}
 		ran++
@@ -200,7 +215,7 @@ func TestIntegrationTranslationJobDefaultBackends(t *testing.T) {
 		})
 	}
 	if ran == 0 {
-		t.Fatal("no Hy-MT2 provider models available on inference server")
+		t.Fatal("no catalog provider models available on inference server")
 	}
 }
 

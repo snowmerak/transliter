@@ -17,8 +17,8 @@ import (
 	"github.com/snowmerak/transliter/models/catalog"
 )
 
-// Fixed Hy-supported targets. Source is always English.
-var hyBenchTargets = []struct {
+// Shared bench targets (Hy-MT2 ∩ TranslateGemma friendly set). Source is English.
+var benchTargets = []struct {
 	name     string
 	language string
 }{
@@ -40,8 +40,8 @@ var hyBenchTargets = []struct {
 }
 
 const (
-	hyBenchSource   = "The service is ready. Please review the attached summary and confirm the next steps before Friday."
-	hyBenchWarmRuns = 2 // full language set passes after first request
+	benchSource   = "The service is ready. Please review the attached summary and confirm the next steps before Friday."
+	benchWarmRuns = 2 // full language set passes after first request
 )
 
 type benchSample struct {
@@ -59,7 +59,7 @@ type benchSample struct {
 	Err         string
 }
 
-func TestIntegrationHyLanguageBench(t *testing.T) {
+func TestIntegrationLanguageBench(t *testing.T) {
 	available := requireIntegrationModels(t)
 
 	authenticator, err := jobs.NewStaticAuthenticator(map[string]string{
@@ -125,10 +125,10 @@ func TestIntegrationHyLanguageBench(t *testing.T) {
 	var samples []benchSample
 	modelsRun := 0
 
-	for _, tc := range hyIntegrationCases {
+	for _, tc := range integrationModelCases {
 		providerModel, ok := resolveProviderModel(available, tc.providerCandidates)
 		if !ok {
-			t.Logf("skip model %s: provider not present", tc.name)
+			t.Logf("skip %s: provider not mounted (candidates=%v)", tc.name, tc.providerCandidates)
 			continue
 		}
 		modelsRun++
@@ -152,9 +152,9 @@ func TestIntegrationHyLanguageBench(t *testing.T) {
 				t.Fatalf("first request failed: %s", first.Err)
 			}
 
-			for pass := 1; pass <= hyBenchWarmRuns; pass++ {
+			for pass := 1; pass <= benchWarmRuns; pass++ {
 				t.Run(fmt.Sprintf("warm%d", pass), func(t *testing.T) {
-					for _, target := range hyBenchTargets {
+					for _, target := range benchTargets {
 						sample := runBenchJob(
 							t,
 							server.URL,
@@ -186,7 +186,7 @@ func TestIntegrationHyLanguageBench(t *testing.T) {
 	}
 
 	if modelsRun == 0 {
-		t.Fatal("no Hy-MT2 provider models available on inference server")
+		t.Fatal("no catalog provider models available on inference server")
 	}
 
 	printBenchSummary(t, samples)
@@ -217,7 +217,7 @@ func runBenchJob(
 			"target_language": %q,
 			"kind": "text"
 		}
-	}`, catalogModel, providerModel, hyBenchSource, targetLang)
+	}`, catalogModel, providerModel, benchSource, targetLang)
 
 	start := time.Now()
 	create := integrationAPIRequest(
@@ -341,14 +341,14 @@ func printBenchSummary(t *testing.T, samples []benchSample) {
 	sort.Strings(models)
 
 	t.Log("=== FIRST REQUEST (per model; unload not forced — may already be hot) ===")
-	t.Logf("%-16s %-28s %10s %10s %s", "catalog", "provider", "infer", "wall", "out")
+	t.Logf("%-20s %-28s %10s %10s %s", "catalog", "provider", "infer", "wall", "out")
 	for _, model := range models {
 		s, ok := firstByModel[model]
 		if !ok {
 			continue
 		}
 		t.Logf(
-			"%-16s %-28s %10s %10s %q",
+			"%-20s %-28s %10s %10s %q",
 			s.Model,
 			s.Provider,
 			s.Infer.Round(time.Millisecond),
@@ -358,10 +358,10 @@ func printBenchSummary(t *testing.T, samples []benchSample) {
 	}
 
 	t.Log("=== WARM (infer = CompletedAt-StartedAt; avg over warm passes only) ===")
-	t.Logf("%-16s %-22s %10s %10s %10s %s", "catalog", "target", "avg_infer", "min", "max", "sample_out")
+	t.Logf("%-20s %-22s %10s %10s %10s %s", "catalog", "target", "avg_infer", "min", "max", "sample_out")
 
-	targets := make([]string, 0, len(hyBenchTargets))
-	for _, target := range hyBenchTargets {
+	targets := make([]string, 0, len(benchTargets))
+	for _, target := range benchTargets {
 		targets = append(targets, target.language)
 	}
 
@@ -370,7 +370,7 @@ func printBenchSummary(t *testing.T, samples []benchSample) {
 		for _, target := range targets {
 			a := warm[key{model: model, target: target}]
 			if a == nil || len(a.infers) == 0 {
-				t.Logf("%-16s %-22s %10s", model, target, "n/a")
+				t.Logf("%-20s %-22s %10s", model, target, "n/a")
 				continue
 			}
 			avg := avgDuration(a.infers)
@@ -381,7 +381,7 @@ func printBenchSummary(t *testing.T, samples []benchSample) {
 				out = a.outs[len(a.outs)-1]
 			}
 			t.Logf(
-				"%-16s %-22s %10s %10s %10s %q",
+				"%-20s %-22s %10s %10s %10s %q",
 				model,
 				target,
 				avg.Round(time.Millisecond),
@@ -394,7 +394,7 @@ func printBenchSummary(t *testing.T, samples []benchSample) {
 			avg := avgDuration(all)
 			minV, maxV := minMaxDuration(all)
 			t.Logf(
-				"%-16s %-22s %10s %10s %10s  (n=%d)",
+				"%-20s %-22s %10s %10s %10s  (n=%d)",
 				model,
 				"*ALL*",
 				avg.Round(time.Millisecond),
