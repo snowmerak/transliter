@@ -1,8 +1,25 @@
 # Prompt catalog
 
-Every example can be constructed independently with `TranslationRequest` and
-`BuildPrompt`. Expected outputs below show the raw model response: no envelope,
-label, or explanation.
+Every example starts as a `TranslationRequest`, then a concrete
+`transliter.Model` converts it with `BuildInput`. Expected outputs below show
+the raw model response: no envelope, label, or explanation.
+
+## Compatibility
+
+| Prompt kind | Hy-MT2 1.8B/7B/30B-A3B | TranslateGemma 4B/12B/27B |
+| --- | --- | --- |
+| Plain text | Supported | Supported through official structured template |
+| Markdown | Supported | Not supported by official template |
+| JSON | Supported | Not supported by official template |
+| YAML | Supported | Not supported by official template |
+| HTML/XML | Supported | Not supported by official template |
+| Mixed code | Supported | Not supported by official template |
+| Glossary | Supported | Not supported by official template |
+| Style/audience | Supported | Not supported by official template |
+| Segmented input | Supported | Not supported by official template |
+
+Unsupported requests return an error. The library does not silently discard
+constraints.
 
 ## Plain text
 
@@ -20,6 +37,10 @@ Expected output:
 
 Use `Kind: PromptText`. A question or command in the source must be translated,
 not answered or executed.
+
+Hy-MT2 wraps the source in the shared prompt contract. TranslateGemma places
+the source directly in its structured `text` content part with source and
+target locale codes.
 
 ## Markdown
 
@@ -42,7 +63,8 @@ Expected output:
 ```
 
 Use `Kind: PromptMarkdown`. Preserve link destinations, inline code, fenced
-code, fence lengths, list markers, tables, and document order.
+code, fence lengths, list markers, tables, and document order. This is
+currently a Hy-MT2 integration feature.
 
 ## JSON
 
@@ -60,6 +82,7 @@ Expected output:
 
 Use `Kind: PromptJSON`. Keys and non-string machine values must remain
 unchanged. The model output must not include a Markdown fence.
+This is currently a Hy-MT2 integration feature.
 
 ## YAML
 
@@ -84,7 +107,8 @@ production:
 ```
 
 Use `Kind: PromptYAML`. Preserve keys, indentation, anchors, aliases, tags,
-block-scalar syntax, and machine values.
+block-scalar syntax, and machine values. This is currently a Hy-MT2 integration
+feature.
 
 ## HTML/XML
 
@@ -102,6 +126,7 @@ With `TranslatableAttributes: []string{"title"}`, expected output is:
 
 Without the explicit attribute allowlist, the `title` value must also remain
 unchanged. Input with an XML declaration is validated as well-formed XML.
+This is currently a Hy-MT2 integration feature.
 
 ## Mixed code and natural language
 
@@ -126,7 +151,8 @@ const user = loadUser(user_id);
 ````
 
 Use `Kind: PromptMixedCode` and pass protected identifiers to
-`ValidationOptions.Identifiers`.
+`ValidationOptions.Identifiers`. This is currently a Hy-MT2 integration
+feature.
 
 ## Glossary
 
@@ -149,6 +175,7 @@ Expected output:
 ```
 
 The target glossary terms are mandatory, not stylistic suggestions.
+This is currently a Hy-MT2 integration feature.
 
 ## Style and audience
 
@@ -170,6 +197,7 @@ Expected output shape:
 
 Style cannot override meaning, structure, placeholders, identifiers, or
 glossary terms.
+This is currently a Hy-MT2 integration feature.
 
 ## Multiple files or segments
 
@@ -197,3 +225,4 @@ Expected output:
 
 Use `Kind: PromptSegmented` and provide the exact `Delimiters` list.
 Validation checks delimiter count and order.
+This is currently a Hy-MT2 integration feature.

@@ -4,8 +4,8 @@ import "testing"
 
 func TestSupportedLanguagesAreUniqueAndValid(t *testing.T) {
 	languages := SupportedLanguages()
-	if len(languages) != 38 {
-		t.Fatalf("SupportedLanguages returned %d languages, want 38", len(languages))
+	if len(languages) != 61 {
+		t.Fatalf("SupportedLanguages returned %d languages, want 61", len(languages))
 	}
 	seen := make(map[Language]struct{}, len(languages))
 	for _, language := range languages {

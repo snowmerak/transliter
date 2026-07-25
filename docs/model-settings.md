@@ -1,77 +1,122 @@
-# Hy-MT2-30B-A3B model settings
+# Model-specific settings
 
-This document separates settings published by the model authors from
-project-level experimental profiles. Values with different provenance must not
-be presented together as official recommendations.
+Each built-in model package owns its generation options. This document keeps
+official recommendations, official examples, and project experiments
+explicitly separated.
 
-## Official model-card settings
+Sources were checked on 2026-07-25:
 
-The inference sections of the
-[Hy-MT2-30B-A3B model card](https://huggingface.co/tencent/Hy-MT2-30B-A3B)
-and the
-[GGUF model card](https://huggingface.co/tencent/Hy-MT2-30B-A3B-GGUF)
-publish the following settings for 30B-A3B (checked 2026-07-25):
+- [Hy-MT2-30B-A3B](https://huggingface.co/tencent/Hy-MT2-30B-A3B)
+- [Hy-MT2-30B-A3B-GGUF](https://huggingface.co/tencent/Hy-MT2-30B-A3B-GGUF)
+- [TranslateGemma 4B IT](https://huggingface.co/google/translategemma-4b-it)
+- [TranslateGemma technical report](https://arxiv.org/abs/2601.09012)
 
-| Setting | Published value |
-| --- | ---: |
-| `temperature` | `0.7` |
-| `top_p` | `1.0` |
-| `top_k` | `-1` |
-| `repetition_penalty` | `1.0` |
-| `max_tokens` | `4096` |
-| Default system prompt | None |
-| Stop sequence | No separate value published |
+## Option provenance
 
-The Transformers example places the translation prompt in one user message,
-applies the model chat template, and uses `max_new_tokens=4096`.
+`GenerationOptions.Provenance` has three possible values:
 
-## Project experimental profiles
+| Value | Meaning |
+| --- | --- |
+| `official_recommendation` | The model authors explicitly recommend these values |
+| `official_example` | The values appear in an official usage example but are not presented as general recommendations |
+| `project_experimental` | A project-defined comparison profile requiring evaluation |
 
-The profiles below are not Tencent recommendations. They are starting points
-for measuring repeatability and format-contract compliance. Evaluate them by
-language pair, document type, inference backend, and quantization.
+Adapters must omit nil option fields. They must not substitute backend defaults
+and then report those defaults as model recommendations.
 
-| Profile | temperature | top_p | top_k | repetition penalty | Maximum output tokens |
+## Hy-MT2 official recommendations
+
+Tencent publishes one profile for 1.8B and 7B, and a different profile for
+30B-A3B:
+
+| Model | temperature | top_p | top_k | repetition penalty | max output tokens |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Published baseline | 0.7 | 1.0 | -1 | 1.0 | 4096 |
-| Low-variance candidate | 0.1 | 1.0 | Disabled | 1.0 | Request-specific, capped at 4096 |
-| Greedy comparison | 0.0 | 1.0 | Disabled | 1.0 | Request-specific, capped at 4096 |
+| Hy-MT2 1.8B | 0.7 | 0.6 | 20 | 1.05 | 4096 |
+| Hy-MT2 7B | 0.7 | 0.6 | 20 | 1.05 | 4096 |
+| Hy-MT2 30B-A3B | 0.7 | 1.0 | -1 | 1.0 | 4096 |
 
-Operational cautions:
+All three packages return
+`ProvenanceOfficialRecommendation` for `ProfileOfficial`.
 
-- The value that disables `top_k` may be `-1`, `0`, or an omitted field,
-  depending on the backend. An inference adapter must translate this semantic
-  setting into the backend-specific representation.
-- `temperature=0` does not guarantee bit-for-bit determinism. Parallel
-  execution, quantization, hardware, and backend versions can affect output.
-- Do not assume a fixed source-to-target token ratio. Measure expansion by
-  language pair and format when calculating output limits.
-- Increasing repetition penalty can remove legitimate repeated sentences,
-  keys, or delimiters. Keep `1.0` in the initial comparison profiles.
+Tencent also states that the models have no default system prompt. No separate
+stop sequence is published.
+
+## Hy-MT2 deterministic experiment
+
+`ProfileDeterministic` changes temperature to `0.1` and preserves the remaining
+size-specific official values. It returns
+`ProvenanceProjectExperimental`.
+
+This is not a Tencent recommendation. Compare it against the official profile
+for every language pair, format, backend, and quantization.
+
+## TranslateGemma official example
+
+TranslateGemma is designed for a strict chat template. Its official direct
+initialization example uses:
+
+```text
+do_sample=false
+max_new_tokens=200
+```
+
+The model card presents `200` as an example value, not a universal maximum or
+recommended production default. Therefore `ProfileOfficial` returns
+`ProvenanceOfficialExample`, not `ProvenanceOfficialRecommendation`.
+
+Temperature, top-p, top-k, and repetition penalty remain nil because the
+official direct example does not specify them.
+
+TranslateGemma's model card states a total input context of 2K tokens. The
+capability metadata reports `MaxInputTokens: 2048`.
+
+## TranslateGemma deterministic profile
+
+The project deterministic profile keeps:
+
+```text
+do_sample=false
+max_output_tokens=200
+```
+
+but marks the result `ProvenanceProjectExperimental` so applications do not
+confuse a project default with an official recommendation.
+
+The application should calculate an output budget from its workload and
+backend constraints rather than treating 200 as sufficient for arbitrary
+documents.
+
+## Backend normalization
+
+Inference adapters must map the neutral option fields carefully:
+
+- a disabled `top_k` may be represented as `-1`, `0`, or an omitted field;
+- `MaxOutputTokens` may map to `max_tokens` or `max_new_tokens`;
+- `DoSample=false` may need to suppress temperature and sampling fields;
+- stop tokens inserted by a chat template differ from application stop
+  strings;
+- GGUF and original-weight backends can produce different output under the
+  same nominal settings.
 
 ## Stop sequences
 
-The default project profile does not add a custom stop sequence. Source data
-may contain common separator strings or Markdown fences, so an application
-stop string can truncate a valid translation.
+No built-in profile adds a custom stop string. Source data can contain common
+separators or Markdown fences, so an application-defined stop value can
+truncate valid output.
 
-Use the chat template's EOS behavior and a maximum output-token limit. Record
-any stop tokens inserted automatically by the backend.
+If a runtime adds one:
 
-If an application requires a custom stop sequence:
-
-1. Verify that it does not occur in the source or generated prompt.
-2. Use a value that cannot appear in valid structured output.
-3. Treat truncated JSON, YAML, HTML, or XML as a validation failure.
+1. verify that it does not occur in source content or model input;
+2. use a value that cannot appear in valid structured output;
+3. treat truncated JSON, YAML, HTML, or XML as a validation failure.
 
 ## Comparison plan
 
-Capture actual model output for the cases in `lib/testdata/cases.json`, then
-measure these dimensions separately:
+Capture actual output for `lib/testdata/cases.json` and measure:
 
 - structural-contract pass rate;
-- translation quality by language pair;
+- quality by model, size, language pair, and prompt kind;
 - glossary compliance;
-- average and worst-case output token count;
+- average and worst-case output tokens;
 - variation across repeated runs;
-- differences between original weights and GGUF quantizations.
+- original weights versus GGUF quantization.

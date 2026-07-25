@@ -2,10 +2,12 @@ package transliter
 
 import "fmt"
 
-// Language is a full language name accepted by Hy-MT2 translation prompts.
+// Language is a canonical full language name known by at least one model
+// integration in this module.
 //
 // Hy-MT2's model card recommends full language names rather than abbreviations
-// in source and target language instructions.
+// in source and target language instructions. Model implementations remain
+// responsible for checking their own supported language subset.
 type Language string
 
 const (
@@ -47,6 +49,29 @@ const (
 	LanguageMongolian          Language = "Mongolian"
 	LanguageUyghur             Language = "Uyghur"
 	LanguageCantonese          Language = "Cantonese"
+	LanguageSwedish            Language = "Swedish"
+	LanguageNorwegian          Language = "Norwegian"
+	LanguageDanish             Language = "Danish"
+	LanguageFinnish            Language = "Finnish"
+	LanguageIcelandic          Language = "Icelandic"
+	LanguageSlovak             Language = "Slovak"
+	LanguageHungarian          Language = "Hungarian"
+	LanguageRomanian           Language = "Romanian"
+	LanguageBulgarian          Language = "Bulgarian"
+	LanguageCroatian           Language = "Croatian"
+	LanguageSerbian            Language = "Serbian"
+	LanguageBosnian            Language = "Bosnian"
+	LanguageSlovenian          Language = "Slovenian"
+	LanguageGreek              Language = "Greek"
+	LanguagePunjabi            Language = "Punjabi"
+	LanguageKannada            Language = "Kannada"
+	LanguageMalayalam          Language = "Malayalam"
+	LanguageSinhala            Language = "Sinhala"
+	LanguageNepali             Language = "Nepali"
+	LanguageSwahili            Language = "Swahili"
+	LanguageAmharic            Language = "Amharic"
+	LanguageYoruba             Language = "Yoruba"
+	LanguageHausa              Language = "Hausa"
 )
 
 var supportedLanguages = [...]Language{
@@ -88,6 +113,29 @@ var supportedLanguages = [...]Language{
 	LanguageMongolian,
 	LanguageUyghur,
 	LanguageCantonese,
+	LanguageSwedish,
+	LanguageNorwegian,
+	LanguageDanish,
+	LanguageFinnish,
+	LanguageIcelandic,
+	LanguageSlovak,
+	LanguageHungarian,
+	LanguageRomanian,
+	LanguageBulgarian,
+	LanguageCroatian,
+	LanguageSerbian,
+	LanguageBosnian,
+	LanguageSlovenian,
+	LanguageGreek,
+	LanguagePunjabi,
+	LanguageKannada,
+	LanguageMalayalam,
+	LanguageSinhala,
+	LanguageNepali,
+	LanguageSwahili,
+	LanguageAmharic,
+	LanguageYoruba,
+	LanguageHausa,
 }
 
 var supportedLanguageSet = func() map[Language]struct{} {
@@ -98,7 +146,7 @@ var supportedLanguageSet = func() map[Language]struct{} {
 	return set
 }()
 
-// Valid reports whether language is one of the languages declared by Hy-MT2.
+// Valid reports whether language is known by at least one model integration.
 func (language Language) Valid() bool {
 	_, ok := supportedLanguageSet[language]
 	return ok

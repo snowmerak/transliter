@@ -68,7 +68,7 @@ Style requirements never override format preservation, glossary terms, placehold
 Keep the same delimiter count, spelling, and order. Do not merge, split, reorder, escape, or translate delimiters.`,
 }
 
-// TranslationRequest is the input to BuildPrompt.
+// TranslationRequest describes a model-independent translation task.
 type TranslationRequest struct {
 	Source                 string
 	TargetLanguage         Language
@@ -81,33 +81,18 @@ type TranslationRequest struct {
 	Delimiters             []string
 }
 
-// BuildPrompt constructs one standalone user prompt with a source-safe fence.
+// BuildPrompt constructs the shared rich user prompt used by Hy-MT2 packages.
+//
+// Application code should normally call Model.BuildInput so a concrete model
+// can select plain or structured message content.
 func BuildPrompt(request TranslationRequest) (string, error) {
-	if strings.TrimSpace(request.TargetLanguage.String()) == "" {
-		return "", fmt.Errorf("target language must not be empty")
-	}
-	if !request.TargetLanguage.Valid() {
-		return "", fmt.Errorf("unsupported target language %q", request.TargetLanguage)
-	}
-	if request.SourceLanguage != "" && !request.SourceLanguage.Valid() {
-		return "", fmt.Errorf("unsupported source language %q", request.SourceLanguage)
+	if err := ValidateTranslationRequest(request); err != nil {
+		return "", err
 	}
 	if request.Kind == "" {
 		request.Kind = PromptText
 	}
-	rules, ok := FormatRules[request.Kind]
-	if !ok {
-		return "", fmt.Errorf("unknown prompt kind %q", request.Kind)
-	}
-	if request.Kind == PromptGlossary && len(request.Glossary) == 0 {
-		return "", fmt.Errorf("glossary prompts require at least one glossary entry")
-	}
-	if request.Kind == PromptStyleAudience && request.Style == "" && request.Audience == "" {
-		return "", fmt.Errorf("style/audience prompts require style or audience")
-	}
-	if request.Kind == PromptSegmented && len(request.Delimiters) == 0 {
-		return "", fmt.Errorf("segmented prompts require at least one delimiter")
-	}
+	rules := FormatRules[request.Kind]
 
 	task := "Translate the following"
 	if request.SourceLanguage != "" {
@@ -131,6 +116,39 @@ func BuildPrompt(request TranslationRequest) (string, error) {
 	}
 	sections = append(sections, "", "Source:", "", source)
 	return strings.Join(sections, "\n"), nil
+}
+
+// ValidateTranslationRequest checks model-independent request constraints.
+// Individual Model implementations must additionally validate capabilities
+// and their supported language subset.
+func ValidateTranslationRequest(request TranslationRequest) error {
+	if strings.TrimSpace(request.TargetLanguage.String()) == "" {
+		return fmt.Errorf("target language must not be empty")
+	}
+	if !request.TargetLanguage.Valid() {
+		return fmt.Errorf("unknown target language %q", request.TargetLanguage)
+	}
+	if request.SourceLanguage != "" && !request.SourceLanguage.Valid() {
+		return fmt.Errorf("unknown source language %q", request.SourceLanguage)
+	}
+	kind := request.Kind
+	if kind == "" {
+		kind = PromptText
+	}
+	_, ok := FormatRules[kind]
+	if !ok {
+		return fmt.Errorf("unknown prompt kind %q", kind)
+	}
+	if kind == PromptGlossary && len(request.Glossary) == 0 {
+		return fmt.Errorf("glossary prompts require at least one glossary entry")
+	}
+	if kind == PromptStyleAudience && request.Style == "" && request.Audience == "" {
+		return fmt.Errorf("style/audience prompts require style or audience")
+	}
+	if kind == PromptSegmented && len(request.Delimiters) == 0 {
+		return fmt.Errorf("segmented prompts require at least one delimiter")
+	}
+	return nil
 }
 
 func promptOptions(request TranslationRequest) []string {

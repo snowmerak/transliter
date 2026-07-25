@@ -1,91 +1,91 @@
 # transliter
 
-`transliter` provides prompt contracts, safe source delimiters, structural
-validators, and test fixtures for using Tencent's
-[Hy-MT2-30B-A3B](https://huggingface.co/tencent/Hy-MT2-30B-A3B) and its
-[GGUF release](https://huggingface.co/tencent/Hy-MT2-30B-A3B-GGUF) as
-translation-only submodels.
+`transliter` provides model-specific translation contracts behind one
+extensible Go interface. It currently supports:
+
+- Tencent Hy-MT2 1.8B
+- Tencent Hy-MT2 7B
+- Tencent Hy-MT2 30B-A3B
+- Google TranslateGemma 4B IT
+- Google TranslateGemma 12B IT
+- Google TranslateGemma 27B IT
+
+The project builds model inputs, separates official and experimental generation
+options, and validates structural output contracts. It does not yet call
+llama.cpp or another inference server.
 
 > The repository is named `transliter`, but the requested Go module path is
 > `github.com/snowmerak/translter`.
 
-The project deliberately does not give Hy-MT2 planning, agent, or tool-calling
-responsibilities. Questions and commands in source content are data to
-translate, not requests to answer or execute.
+## Design
+
+The common library contains model-independent contracts:
+
+```go
+type Model interface {
+	Descriptor() Descriptor
+	Capabilities() Capabilities
+	SupportsLanguage(Language) bool
+	BuildInput(TranslationRequest) (ModelInput, error)
+	Options(OptionProfile) (GenerationOptions, error)
+}
+```
+
+Each model size is a separate package that implements this interface. A new
+model integration can be added without changing CLI, REST, or inference
+adapters.
 
 ## Repository layout
 
 ```text
 .
-├── lib/                    Reusable translation prompt and validation package
-│   ├── fence.go            Safe Markdown source fences
-│   ├── prompt.go           Composable prompt contracts
-│   ├── validate.go         Mechanical output validation
-│   └── testdata/           Translation and contract fixtures
-├── docs/
-│   ├── architecture.md     Planned CLI and REST server boundaries
-│   ├── model-settings.md   Official settings vs experimental profiles
-│   └── prompt-catalog.md   Input and expected-output examples
-├── go.mod
-└── go.sum
+├── lib/                              Shared interfaces, prompts, fences, validation
+├── models/
+│   ├── catalog/                      Built-in model discovery
+│   ├── hymt2/
+│   │   ├── v1p8b/
+│   │   ├── v7b/
+│   │   └── v30ba3b/
+│   └── translategemma/
+│       ├── v4b/
+│       ├── v12b/
+│       └── v27b/
+└── docs/
+    ├── architecture.md
+    ├── model-settings.md
+    └── prompt-catalog.md
 ```
 
-All reusable behavior is in `lib`, imported as package `transliter`. The module
-root contains no runtime, which leaves clear space for future CLI and REST
-server entry points under `cmd/`.
-
-## Supported prompt types
-
-- Plain text
-- Markdown
-- JSON
-- YAML
-- HTML/XML
-- Mixed code and natural language
-- Glossary-constrained translation
-- Style- and audience-constrained translation
-- Multi-file or multi-segment translation with exact delimiters
-
-Shared rules live in `CommonContract`; format-specific rules live in
-`FormatRules`. Every value in `PromptKinds` can produce a standalone prompt.
+Shared family implementation details live under `models/internal`; callers
+import only `lib`, a concrete model package, or `models/catalog`.
 
 ## Install
 
+Install only the model packages an application needs:
+
 ```bash
 go get github.com/snowmerak/translter/lib
+go get github.com/snowmerak/translter/models/hymt2/v30ba3b
 ```
 
-## Language constants
-
-`TranslationRequest` uses the typed `Language` enum for source and target
-languages:
-
-```go
-sourceLanguage := transliter.LanguageEnglish
-targetLanguage := transliter.LanguageKorean
-languages := transliter.SupportedLanguages()
-```
-
-Use `transliter.SupportedLanguages()` to populate a CLI choice list or REST
-metadata response. Use `transliter.ParseLanguage(value)` at an external input
-boundary. It accepts canonical full names such as `"Korean"` and rejects
-unsupported or incorrectly cased values. `BuildPrompt` validates both language
-fields again before constructing a prompt.
-
-## Build a prompt
+## Build model input through the common interface
 
 ```go
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 
-	"github.com/snowmerak/translter/lib"
+	transliter "github.com/snowmerak/translter/lib"
+	hymt2 "github.com/snowmerak/translter/models/hymt2/v30ba3b"
 )
 
 func main() {
-	prompt, err := transliter.BuildPrompt(transliter.TranslationRequest{
+	var model transliter.Model = hymt2.New()
+
+	input, err := model.BuildInput(transliter.TranslationRequest{
 		Source:         "The service is ready.",
 		SourceLanguage: transliter.LanguageEnglish,
 		TargetLanguage: transliter.LanguageKorean,
@@ -94,101 +94,117 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(prompt)
+
+	options, err := model.Options(transliter.ProfileOfficial)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	payload, _ := json.Marshal(input)
+	fmt.Println(string(payload))
+	fmt.Printf("%+v\n", options)
 }
 ```
 
-The important part of the generated prompt looks like this:
+For Hy-MT2, the user message content is a plain string containing the complete
+translation contract and a safe source fence.
 
-~~~~~text
-Translate the following from English into Korean.
+For TranslateGemma, the same interface returns its official structured user
+content:
 
-Translation contract:
-Output only the translated result.
-...
-
-Source:
-
-````
-The service is ready.
-````
-~~~~~
-
-The expected model output is only:
-
-```text
-서비스가 준비되었습니다.
+```json
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "The service is ready.",
+          "source_lang_code": "en",
+          "target_lang_code": "ko"
+        }
+      ]
+    }
+  ]
+}
 ```
 
-It must not contain a `Translation:` prefix, commentary, a Markdown fence, or
-an envelope such as `{"translation":"..."}`.
+An inference adapter can serialize `ModelInput` directly into an
+OpenAI-compatible request, then map `GenerationOptions` into backend-specific
+fields.
+
+## Built-in model discovery
+
+`models/catalog` provides the six bundled implementations:
+
+```go
+models := catalog.All()
+model, ok := catalog.Find("hymt2-30b-a3b")
+```
+
+Applications can also construct their own `[]transliter.Model`, including
+third-party implementations.
+
+## Model packages and capabilities
+
+| Model ID | Package | User content | Prompt kinds |
+| --- | --- | --- | --- |
+| `hymt2-1.8b` | `models/hymt2/v1p8b` | Plain string | All supported kinds |
+| `hymt2-7b` | `models/hymt2/v7b` | Plain string | All supported kinds |
+| `hymt2-30b-a3b` | `models/hymt2/v30ba3b` | Plain string | All supported kinds |
+| `translategemma-4b` | `models/translategemma/v4b` | Structured part | Plain text |
+| `translategemma-12b` | `models/translategemma/v12b` | Structured part | Plain text |
+| `translategemma-27b` | `models/translategemma/v27b` | Structured part | Plain text |
+
+TranslateGemma's official chat template requires a source locale, a target
+locale, and source text as exactly one structured content part. Glossary,
+Markdown, style, and segmented prompts would require an unofficial manual
+prompt path, so the official integration rejects them instead of silently
+ignoring constraints.
+
+## Generation options
+
+Every model package owns its settings. `ProfileOfficial` returns values
+published as either an official recommendation or an official model-card
+example. Check `GenerationOptions.Provenance` before presenting a value as a
+recommendation.
+
+`ProfileDeterministic` is a project experimental profile. It is never labeled
+as an official recommendation.
+
+See [model settings](docs/model-settings.md) for exact values.
+
+## Languages
+
+`Language` is a typed string enum containing the union of languages supported
+by built-in integrations:
+
+```go
+source := transliter.LanguageEnglish
+target := transliter.LanguageKorean
+language, err := transliter.ParseLanguage("Japanese")
+```
+
+`SupportedLanguages()` returns the global union. A model-specific UI must call
+`model.SupportsLanguage(language)` because Hy-MT2 and TranslateGemma have
+different language sets and language-code formats.
 
 ## Safe source fences
 
-Source content is normally wrapped in a four-backtick Markdown fence.
-`FenceSource` measures the longest consecutive backtick run `N` in the source
-and uses `max(4, N+1)` backticks for the outer fence. The opening and closing
-fences are always identical.
+Hy-MT2 source content is wrapped in a dynamically sized Markdown fence.
+`FenceSource` measures the longest consecutive backtick run `N` and uses
+`max(4, N+1)` backticks for the outer fence.
 
-This prevents source documents containing triple, quadruple, or longer code
-fences from closing the prompt boundary early.
+TranslateGemma does not use this fence because its official template receives
+source text in a dedicated structured field.
 
-## Structured data
-
-For JSON, preserve keys, object and array structure, numbers, booleans, and
-`null`. Translate only user-visible string values. Model output must be valid
-JSON without a Markdown fence.
-
-For YAML, preserve keys, indentation, anchors, aliases, tags, block scalar
-syntax, and machine values. Translate only user-visible scalar content.
-
-For HTML/XML, preserve tag names, attribute names, nesting, URLs, `id`, `class`,
-and `data-*` attributes. Text nodes are translated by default. Attributes such
-as `title` or `alt` must be explicitly allowed:
-
-```go
-request := transliter.TranslationRequest{
-	Source:                 `<a href="/guide" title="Read guide">Open</a>`,
-	TargetLanguage:         transliter.LanguageKorean,
-	Kind:                   transliter.PromptHTMLXML,
-	TranslatableAttributes: []string{"title"},
-}
-```
-
-## Glossary, style, and audience
-
-A glossary maps a source term to the exact required target term:
-
-```go
-request := transliter.TranslationRequest{
-	Source:         "Create a pull request.",
-	TargetLanguage: transliter.LanguageKorean,
-	Kind:           transliter.PromptGlossary,
-	Glossary:       map[string]string{"pull request": "풀 리퀘스트"},
-}
-```
-
-Style and audience constraints never override meaning, structure,
-placeholders, identifiers, or glossary terms:
-
-```go
-request := transliter.TranslationRequest{
-	Source:         "Restart the service.",
-	TargetLanguage: transliter.LanguageKorean,
-	Kind:           transliter.PromptStyleAudience,
-	Style:          "concise and formal",
-	Audience:       "site reliability engineers",
-}
-```
-
-See the [prompt catalog](docs/prompt-catalog.md) for every prompt type.
-
-## Validate model output
+## Output validation
 
 `ValidateTranslation` checks preservation and parseability rather than
-linguistic quality. It compares placeholders, URLs, email addresses, file
-paths, Markdown fences, caller-supplied identifiers, and segment delimiters.
-It also checks JSON, YAML, HTML, and XML structure.
+linguistic quality. It compares placeholders, URLs, email addresses, paths,
+Markdown fences, identifiers, and segment delimiters, and validates
+JSON/YAML/HTML/XML structure.
 
 ```go
 result := transliter.ValidateTranslation(source, output, transliter.ValidationOptions{
@@ -196,62 +212,42 @@ result := transliter.ValidateTranslation(source, output, transliter.ValidationOp
 	Identifiers: []string{"user_id"},
 })
 if !result.OK() {
-	// Reject the output or retry according to the application policy.
+	// Reject or retry according to application policy.
 }
 ```
 
-Translation accuracy and fluency belong in a separate evaluation layer.
+The application must select validation options from the original translation
+request. Model output remains raw translated content; a REST handler can add a
+transport envelope after validation.
 
-## Model and harness responsibilities
+## Future CLI and REST server
 
-| Model | Application harness |
-| --- | --- |
-| Translate all source meaning | Build prompts and safe source fences |
-| Preserve requested format and terminology | Enforce limits, timeouts, and retry policy |
-| Return only translated content | Validate structure and protected tokens |
-| Treat source instructions as data | Add any API response envelope after validation |
-
-The model is not asked to produce a standard response envelope. A CLI can
-write the raw validated translation to stdout, while an HTTP handler can wrap
-the same result in its own transport-level JSON response.
-
-## CLI and REST server direction
-
-The library contains no flags, environment handling, HTTP types, or model
-client. Planned executables should live under separate `cmd/` directories and
-share application services under `internal/`:
+The planned runtime layers remain separate:
 
 ```text
 cmd/transliter/             CLI entry point
 cmd/transliter-server/      REST server entry point
-internal/application/       Translation orchestration and retry policy
-internal/inference/         llama.cpp or OpenAI-compatible client adapters
-internal/httpapi/           HTTP handlers and transport DTOs
+internal/application/       Model selection, orchestration, validation, retry
+internal/inference/         llama.cpp/OpenAI-compatible adapters
+internal/httpapi/           HTTP handlers and DTOs
 api/openapi.yaml            Optional public REST contract
 ```
 
-See [architecture.md](docs/architecture.md) for dependency rules and suggested
-request flow.
+The application layer depends only on `transliter.Model`, so selecting a
+different model does not change transport or inference code.
+
+See [application architecture](docs/architecture.md) for the complete request
+flow.
 
 ## Tests
 
 ```bash
 go test ./...
 go vet ./...
+go mod verify
 ```
 
-`lib/testdata/cases.json` covers English-to-Korean, Japanese-to-Korean,
-Korean-to-English, embedded questions and commands, Markdown, nested
-backticks, JSON/YAML/HTML/XML, placeholders, URLs, email addresses, paths,
-glossaries, code identifiers, empty and long input, already-target-language
-input, mixed languages, and segmented files.
-
-The manually written expected translations are structural-validation fixtures,
-not a string-equality translation benchmark.
-
-## Model settings
-
-[Model settings](docs/model-settings.md) separates values published by Tencent
-from lower-temperature experimental profiles. Experimental profiles should be
-evaluated by language pair, format, backend, and quantization before becoming
-application defaults.
+`lib/testdata/cases.json` covers language pairs, embedded instructions,
+Markdown, nested backticks, structured formats, placeholders, addresses,
+glossaries, identifiers, empty and long input, mixed languages, and segmented
+files.
