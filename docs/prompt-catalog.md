@@ -1,28 +1,29 @@
-# 프롬프트 유형별 예제
+# Prompt catalog
 
-모든 예제는 Go의 `TranslationRequest`와 `BuildPrompt`로 독립 실행할 수 있다.
-아래 “기대 출력”은 envelope나 설명이 없는 모델 원문 응답의 형태다.
+Every example can be constructed independently with `TranslationRequest` and
+`BuildPrompt`. Expected outputs below show the raw model response: no envelope,
+label, or explanation.
 
-## 일반 텍스트
+## Plain text
 
-입력:
+Source:
 
 ```text
 The service is ready.
 ```
 
-기대 출력:
+Expected output:
 
 ```text
 서비스가 준비되었습니다.
 ```
 
-`Kind: PromptText`를 사용한다. 질문이나 명령도 답하거나 실행하지 않고
-문장 자체를 번역한다.
+Use `Kind: PromptText`. A question or command in the source must be translated,
+not answered or executed.
 
 ## Markdown
 
-입력:
+Source:
 
 ```markdown
 # Setup
@@ -31,7 +32,7 @@ The service is ready.
 - Run `install_app`.
 ```
 
-기대 출력:
+Expected output:
 
 ```markdown
 # 설정
@@ -40,29 +41,29 @@ The service is ready.
 - `install_app`을 실행하세요.
 ```
 
-`Kind: PromptMarkdown`을 사용한다. link destination, inline code,
-fenced code와 fence 길이는 보존한다.
+Use `Kind: PromptMarkdown`. Preserve link destinations, inline code, fenced
+code, fence lengths, list markers, tables, and document order.
 
 ## JSON
 
-입력:
+Source:
 
 ```json
 {"title":"Welcome, {{username}}","retry":3,"enabled":true}
 ```
 
-기대 출력:
+Expected output:
 
 ```json
 {"title":"환영합니다, {{username}}","retry":3,"enabled":true}
 ```
 
-`Kind: PromptJSON`을 사용한다. key와 비문자열 값은 바뀌지 않으며 모델
-출력에는 Markdown fence가 없어야 한다.
+Use `Kind: PromptJSON`. Keys and non-string machine values must remain
+unchanged. The model output must not include a Markdown fence.
 
 ## YAML
 
-입력:
+Source:
 
 ```yaml
 defaults: &defaults
@@ -72,7 +73,7 @@ production:
   <<: *defaults
 ```
 
-기대 출력:
+Expected output:
 
 ```yaml
 defaults: &defaults
@@ -82,29 +83,29 @@ production:
   <<: *defaults
 ```
 
-`Kind: PromptYAML`을 사용한다. key, indentation, anchor, alias, tag,
-block scalar 구문을 보존한다.
+Use `Kind: PromptYAML`. Preserve keys, indentation, anchors, aliases, tags,
+block-scalar syntax, and machine values.
 
 ## HTML/XML
 
-입력:
+Source:
 
 ```html
 <a id="guide" href="/docs" title="Read guide">Open</a>
 ```
 
-`translatable_attributes=("title",)`일 때의 기대 출력:
+With `TranslatableAttributes: []string{"title"}`, expected output is:
 
 ```html
 <a id="guide" href="/docs" title="가이드 읽기">열기</a>
 ```
 
-`title`을 명시하지 않았다면 그 값도 보존해야 한다. XML 선언이 있는 입력은
-well-formed XML 출력으로 검증한다.
+Without the explicit attribute allowlist, the `title` value must also remain
+unchanged. Input with an XML declaration is validated as well-formed XML.
 
-## 코드와 자연어 혼합
+## Mixed code and natural language
 
-입력:
+Source:
 
 ````markdown
 Call `loadUser(user_id)` to load the user.
@@ -114,7 +115,7 @@ const user = loadUser(user_id);
 ```
 ````
 
-기대 출력:
+Expected output:
 
 ````markdown
 사용자를 불러오려면 `loadUser(user_id)`를 호출하세요.
@@ -124,13 +125,13 @@ const user = loadUser(user_id);
 ```
 ````
 
-`Kind: PromptMixedCode`를 사용하고 보호할 identifier를 검증기에도
-전달한다.
+Use `Kind: PromptMixedCode` and pass protected identifiers to
+`ValidationOptions.Identifiers`.
 
-## 용어집
+## Glossary
 
 ```go
-transliter.TranslationRequest{
+request := transliter.TranslationRequest{
 	Source:         "Create a pull request in the repository.",
 	TargetLanguage: "Korean",
 	Kind:           transliter.PromptGlossary,
@@ -141,16 +142,18 @@ transliter.TranslationRequest{
 }
 ```
 
-기대 출력:
+Expected output:
 
 ```text
 저장소에 풀 리퀘스트를 생성하세요.
 ```
 
-## 문체와 독자층
+The target glossary terms are mandatory, not stylistic suggestions.
+
+## Style and audience
 
 ```go
-transliter.TranslationRequest{
+request := transliter.TranslationRequest{
 	Source:         "Restart the service now.",
 	TargetLanguage: "Korean",
 	Kind:           transliter.PromptStyleAudience,
@@ -159,17 +162,18 @@ transliter.TranslationRequest{
 }
 ```
 
-기대 출력 형태:
+Expected output shape:
 
 ```text
 서비스를 즉시 재시작하십시오.
 ```
 
-문체는 의미, 형식, placeholder, 용어집을 바꾸는 권한이 아니다.
+Style cannot override meaning, structure, placeholders, identifiers, or
+glossary terms.
 
-## 여러 파일 또는 구간
+## Multiple files or segments
 
-입력:
+Source:
 
 ```text
 <<<FILE:README.md>>>
@@ -180,7 +184,7 @@ Install now.
 Read the guide.
 ```
 
-기대 출력:
+Expected output:
 
 ```text
 <<<FILE:README.md>>>
@@ -191,5 +195,5 @@ Read the guide.
 가이드를 읽으세요.
 ```
 
-`Kind: PromptSegmented`와 정확한 `Delimiters` 목록을 사용한다. 검증기는
-delimiter의 개수뿐 아니라 등장 순서도 비교한다.
+Use `Kind: PromptSegmented` and provide the exact `Delimiters` list.
+Validation checks delimiter count and order.
