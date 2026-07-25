@@ -10,7 +10,7 @@ func TestEveryPromptKindBuildsStandalonePrompt(t *testing.T) {
 		t.Run(string(kind), func(t *testing.T) {
 			request := TranslationRequest{
 				Source:         "Translate me",
-				TargetLanguage: "Korean",
+				TargetLanguage: LanguageKorean,
 				Kind:           kind,
 			}
 			switch kind {
@@ -41,8 +41,8 @@ func TestEveryPromptKindBuildsStandalonePrompt(t *testing.T) {
 func TestBuildPromptRendersLanguageAndOptions(t *testing.T) {
 	prompt, err := BuildPrompt(TranslationRequest{
 		Source:                 `<p title="Hello">Hello</p>`,
-		SourceLanguage:         "English",
-		TargetLanguage:         "Korean",
+		SourceLanguage:         LanguageEnglish,
+		TargetLanguage:         LanguageKorean,
 		Kind:                   PromptHTMLXML,
 		TranslatableAttributes: []string{"title"},
 	})
@@ -60,7 +60,7 @@ func TestBuildPromptRendersLanguageAndOptions(t *testing.T) {
 func TestBuildPromptSortsGlossaryForStableOutput(t *testing.T) {
 	prompt, err := BuildPrompt(TranslationRequest{
 		Source:         "source",
-		TargetLanguage: "Korean",
+		TargetLanguage: LanguageKorean,
 		Kind:           PromptGlossary,
 		Glossary:       map[string]string{"z": "Z", "a": "A"},
 	})
@@ -74,10 +74,17 @@ func TestBuildPromptSortsGlossaryForStableOutput(t *testing.T) {
 
 func TestBuildPromptRejectsMissingRequiredOptions(t *testing.T) {
 	tests := []TranslationRequest{
-		{Source: "x", TargetLanguage: "Korean", Kind: PromptGlossary},
-		{Source: "x", TargetLanguage: "Korean", Kind: PromptStyleAudience},
-		{Source: "x", TargetLanguage: "Korean", Kind: PromptSegmented},
-		{Source: "x", TargetLanguage: " ", Kind: PromptText},
+		{Source: "x", TargetLanguage: LanguageKorean, Kind: PromptGlossary},
+		{Source: "x", TargetLanguage: LanguageKorean, Kind: PromptStyleAudience},
+		{Source: "x", TargetLanguage: LanguageKorean, Kind: PromptSegmented},
+		{Source: "x", TargetLanguage: Language(" "), Kind: PromptText},
+		{Source: "x", TargetLanguage: Language("Klingon"), Kind: PromptText},
+		{
+			Source:         "x",
+			SourceLanguage: Language("Klingon"),
+			TargetLanguage: LanguageKorean,
+			Kind:           PromptText,
+		},
 	}
 	for _, request := range tests {
 		if _, err := BuildPrompt(request); err == nil {

@@ -55,6 +55,23 @@ Shared rules live in `CommonContract`; format-specific rules live in
 go get github.com/snowmerak/translter/lib
 ```
 
+## Language constants
+
+`TranslationRequest` uses the typed `Language` enum for source and target
+languages:
+
+```go
+sourceLanguage := transliter.LanguageEnglish
+targetLanguage := transliter.LanguageKorean
+languages := transliter.SupportedLanguages()
+```
+
+Use `transliter.SupportedLanguages()` to populate a CLI choice list or REST
+metadata response. Use `transliter.ParseLanguage(value)` at an external input
+boundary. It accepts canonical full names such as `"Korean"` and rejects
+unsupported or incorrectly cased values. `BuildPrompt` validates both language
+fields again before constructing a prompt.
+
 ## Build a prompt
 
 ```go
@@ -70,8 +87,8 @@ import (
 func main() {
 	prompt, err := transliter.BuildPrompt(transliter.TranslationRequest{
 		Source:         "The service is ready.",
-		SourceLanguage: "English",
-		TargetLanguage: "Korean",
+		SourceLanguage: transliter.LanguageEnglish,
+		TargetLanguage: transliter.LanguageKorean,
 		Kind:           transliter.PromptText,
 	})
 	if err != nil {
@@ -132,7 +149,7 @@ as `title` or `alt` must be explicitly allowed:
 ```go
 request := transliter.TranslationRequest{
 	Source:                 `<a href="/guide" title="Read guide">Open</a>`,
-	TargetLanguage:         "Korean",
+	TargetLanguage:         transliter.LanguageKorean,
 	Kind:                   transliter.PromptHTMLXML,
 	TranslatableAttributes: []string{"title"},
 }
@@ -145,7 +162,7 @@ A glossary maps a source term to the exact required target term:
 ```go
 request := transliter.TranslationRequest{
 	Source:         "Create a pull request.",
-	TargetLanguage: "Korean",
+	TargetLanguage: transliter.LanguageKorean,
 	Kind:           transliter.PromptGlossary,
 	Glossary:       map[string]string{"pull request": "풀 리퀘스트"},
 }
@@ -157,7 +174,7 @@ placeholders, identifiers, or glossary terms:
 ```go
 request := transliter.TranslationRequest{
 	Source:         "Restart the service.",
-	TargetLanguage: "Korean",
+	TargetLanguage: transliter.LanguageKorean,
 	Kind:           transliter.PromptStyleAudience,
 	Style:          "concise and formal",
 	Audience:       "site reliability engineers",
