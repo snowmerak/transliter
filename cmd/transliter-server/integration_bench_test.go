@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -125,7 +126,18 @@ func TestIntegrationLanguageBench(t *testing.T) {
 	var samples []benchSample
 	modelsRun := 0
 
-	for _, tc := range integrationModelCases {
+	cases := append([]struct {
+		name               string
+		catalogModel       string
+		providerCandidates []string
+	}{}, integrationModelCases...)
+	if os.Getenv("TRANSLITER_INTEGRATION_TRANSLATEGEMMA") == "1" {
+		cases = append(cases, translateGemmaDiagnosticCases...)
+	} else {
+		t.Log("TranslateGemma bench cases skipped; set TRANSLITER_INTEGRATION_TRANSLATEGEMMA=1 to include")
+	}
+
+	for _, tc := range cases {
 		providerModel, ok := resolveProviderModel(available, tc.providerCandidates)
 		if !ok {
 			t.Logf("skip %s: provider not mounted (candidates=%v)", tc.name, tc.providerCandidates)
