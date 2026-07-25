@@ -31,12 +31,27 @@ source text, model-server credentials, or owner credentials.
 | `GET` | `/v1/jobs/{id}` | required | Read one job owned by the API key |
 | `GET` | `/v1/jobs?limit=20&before=<time>` | required | List previous jobs for the API key |
 | `GET` | `/healthz` | public | Process health |
+| `GET` | `/openapi.json` | public | OpenAPI 3.1 document as JSON |
+| `GET` | `/openapi.yaml` | public | OpenAPI 3.1 document as YAML |
+| `GET` | `/docs` | public | Interactive Scalar API reference |
 
 Use either `Authorization: Bearer <key>` or `X-API-Key: <key>`. Authorization
 headers take precedence.
 
 Cross-owner reads return `404`, rather than revealing that another owner's job
 exists.
+
+## Interactive API reference
+
+The OpenAPI YAML source is embedded in the Go binary. `/openapi.json` is
+generated from that source at startup, so the JSON and YAML endpoints cannot
+drift independently.
+
+`/docs` uses Scalar's standalone browser integration and loads the served
+`/openapi.json` document. The Scalar CDN dependency is pinned to an explicit
+version. The documentation endpoints are public; using the interactive request
+client against job endpoints still requires one of the documented API-key
+security schemes.
 
 ## Create a job
 

@@ -1,0 +1,388 @@
+openapi: 3.1.0
+info:
+  title: transliter REST API
+  version: 1.0.0
+  summary: Asynchronous translation jobs
+  description: |
+    Authenticates callers, queues translation jobs, runs them through a
+    user-managed OpenAI-compatible model server, and retains owner-scoped job
+    history.
+
+    Queue delivery is at-least-once. A model call can be repeated if a worker
+    stops while a running job is being processed.
+  license:
+    name: MIT
+    identifier: MIT
+externalDocs:
+  description: Project documentation
+  url: https://github.com/snowmerak/transliter
+servers:
+  - url: /
+    description: Current server
+tags:
+  - name: Jobs
+    description: Authenticated asynchronous translation jobs
+  - name: System
+    description: Process health and API documentation
+paths:
+  /v1/jobs:
+    post:
+      tags: [Jobs]
+      operationId: createTranslationJob
+      summary: Create a translation job
+      description: Validates, stores, and enqueues a translation job.
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateJobRequest"
+            examples:
+              text:
+                summary: English to Korean with Hy-MT2
+                value:
+                  model: hymt2-30b-a3b
+                  provider_model: hy-mt2-local
+                  profile: deterministic
+                  translation:
+                    source: The service is ready.
+                    source_language: English
+                    target_language: Korean
+                    kind: text
+      responses:
+        "202":
+          description: Job stored and enqueued
+          headers:
+            Location:
+              description: Relative URL for the created job
+              schema:
+                type: string
+                example: /v1/jobs/52d14df7b8b5a7d231b2295790994332
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+    get:
+      tags: [Jobs]
+      operationId: listTranslationJobs
+      summary: List previous jobs for the authenticated owner
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum jobs to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: before
+          in: query
+          description: Return jobs created before this RFC3339 timestamp
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Owner-scoped job history in descending creation order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobHistory"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /v1/jobs/{id}:
+    get:
+      tags: [Jobs]
+      operationId: getTranslationJob
+      summary: Get one translation job
+      description: Cross-owner reads return 404 without revealing job existence.
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Cryptographically random 128-bit job ID
+          schema:
+            type: string
+            pattern: "^[0-9a-f]{32}$"
+      responses:
+        "200":
+          description: Current job state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /healthz:
+    get:
+      tags: [System]
+      operationId: getHealth
+      summary: Get process health
+      security: []
+      responses:
+        "200":
+          description: Process is running
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    const: ok
+  /openapi.json:
+    get:
+      tags: [System]
+      operationId: getOpenAPIJSON
+      summary: Download the OpenAPI document as JSON
+      security: []
+      responses:
+        "200":
+          description: OpenAPI 3.1 document
+          content:
+            application/json:
+              schema:
+                type: object
+  /openapi.yaml:
+    get:
+      tags: [System]
+      operationId: getOpenAPIYAML
+      summary: Download the OpenAPI document as YAML
+      security: []
+      responses:
+        "200":
+          description: OpenAPI 3.1 document
+          content:
+            application/yaml:
+              schema:
+                type: string
+  /docs:
+    get:
+      tags: [System]
+      operationId: getScalarDocumentation
+      summary: Open the interactive Scalar API reference
+      security: []
+      responses:
+        "200":
+          description: Scalar HTML application
+          content:
+            text/html:
+              schema:
+                type: string
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Client API key in the Authorization header
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  responses:
+    BadRequest:
+      description: Invalid JSON, query parameter, or request shape
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Missing or invalid client API key
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Job not found for the authenticated owner
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    UnprocessableEntity:
+      description: Unsupported model, language, profile, or translation contract
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ServiceUnavailable:
+      description: Queue or store is unavailable
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    CreateJobRequest:
+      type: object
+      additionalProperties: false
+      required: [model, translation]
+      properties:
+        model:
+          $ref: "#/components/schemas/ModelID"
+        provider_model:
+          type: string
+          description: Model name or alias understood by the inference server
+        profile:
+          $ref: "#/components/schemas/OptionProfile"
+        translation:
+          $ref: "#/components/schemas/TranslationRequest"
+    TranslationRequest:
+      type: object
+      additionalProperties: false
+      required: [target_language]
+      properties:
+        source:
+          type: string
+        source_language:
+          $ref: "#/components/schemas/Language"
+        target_language:
+          $ref: "#/components/schemas/Language"
+        kind:
+          $ref: "#/components/schemas/PromptKind"
+        glossary:
+          type: object
+          additionalProperties:
+            type: string
+        style:
+          type: string
+        audience:
+          type: string
+        translatable_attributes:
+          type: array
+          items:
+            type: string
+        delimiters:
+          type: array
+          items:
+            type: string
+    ModelID:
+      type: string
+      enum:
+        - hymt2-1.8b
+        - hymt2-7b
+        - hymt2-30b-a3b
+        - translategemma-4b
+        - translategemma-12b
+        - translategemma-27b
+    OptionProfile:
+      type: string
+      default: official
+      enum: [official, deterministic]
+    PromptKind:
+      type: string
+      default: text
+      enum:
+        - text
+        - markdown
+        - json
+        - yaml
+        - html_xml
+        - mixed_code
+        - glossary
+        - style_audience
+        - segmented
+    Language:
+      type: string
+      description: Typed language name supported by the selected model
+      examples: [English, Korean, Japanese]
+    Job:
+      type: object
+      required:
+        - id
+        - status
+        - request
+        - created_at
+        - updated_at
+        - expires_at
+      properties:
+        id:
+          type: string
+          pattern: "^[0-9a-f]{32}$"
+        status:
+          $ref: "#/components/schemas/JobStatus"
+        request:
+          $ref: "#/components/schemas/CreateJobRequest"
+        result:
+          $ref: "#/components/schemas/JobResult"
+        error:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+    JobStatus:
+      type: string
+      enum: [queued, running, succeeded, failed]
+    JobResult:
+      type: object
+      required: [translation]
+      properties:
+        translation:
+          type: string
+        provider_model:
+          type: string
+        finish_reason:
+          type: string
+        prompt_tokens:
+          type: integer
+          minimum: 0
+        output_tokens:
+          type: integer
+          minimum: 0
+        total_tokens:
+          type: integer
+          minimum: 0
+    JobHistory:
+      type: object
+      required: [jobs]
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: "#/components/schemas/Job"
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [status, message]
+          properties:
+            status:
+              type: integer
+            message:
+              type: string

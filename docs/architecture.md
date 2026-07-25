@@ -36,7 +36,8 @@ its API key directly from the environment.
 `lib/jobs` owns asynchronous job, queue, store, authentication, processor, and
 scheduler contracts. Backend packages depend on those contracts independently.
 `lib/restapi` owns only authenticated HTTP mapping and does not select a
-database or queue.
+database or queue. It also embeds the canonical OpenAPI 3.1 source and serves
+JSON, YAML, and a Scalar reference.
 
 ## Model extension interface
 
@@ -174,7 +175,10 @@ The asynchronous REST API exposes:
 - `POST /v1/jobs`;
 - `GET /v1/jobs/{id}`;
 - `GET /v1/jobs`;
-- `GET /healthz`.
+- `GET /healthz`;
+- `GET /openapi.json`;
+- `GET /openapi.yaml`;
+- `GET /docs`.
 
 The job result wraps raw model output only after inference:
 

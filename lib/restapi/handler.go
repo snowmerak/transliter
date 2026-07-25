@@ -48,6 +48,9 @@ func (handler *Handler) Routes() (http.Handler, error) {
 	}
 
 	mux := http.NewServeMux()
+	if err := registerDocumentation(mux); err != nil {
+		return nil, err
+	}
 	mux.HandleFunc("GET /healthz", handler.health)
 	mux.HandleFunc("POST /v1/jobs", handler.auth(handler.create))
 	mux.HandleFunc("GET /v1/jobs", handler.auth(handler.list))

@@ -319,6 +319,9 @@ POST /v1/jobs
 GET  /v1/jobs/{job_id}
 GET  /v1/jobs
 GET  /healthz
+GET  /openapi.json
+GET  /openapi.yaml
+GET  /docs
 ```
 
 Inbound client keys are configured only through
@@ -338,6 +341,9 @@ key remains separate in `TRANSLITER_API_KEY`.
 See [REST API and job backends](docs/rest-api.md) for request examples,
 configuration, persistence characteristics, and the complete backend matrix.
 See [application architecture](docs/architecture.md) for dependency boundaries.
+
+`/docs` serves an interactive Scalar reference backed by the same embedded
+OpenAPI 3.1 document available from `/openapi.json` and `/openapi.yaml`.
 
 ## Tests
 
