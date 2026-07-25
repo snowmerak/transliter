@@ -25,9 +25,13 @@ Runtime code will own:
 
 - CLI flags and stdout/stderr policy;
 - HTTP routing, status codes, and response DTOs;
-- inference server URLs and authentication;
+- inference server URLs and non-secret configuration;
 - network timeouts and retries;
 - logging, metrics, tracing, and persistence.
+
+`lib/inference` owns transport-neutral request and response contracts.
+`lib/inference/openai` owns the reusable OpenAI-compatible HTTP client and reads
+its API key directly from the environment.
 
 ## Model extension interface
 
@@ -66,10 +70,6 @@ internal/
 │   ├── service.go             Translation orchestration
 │   ├── models.go              Model registry and selection
 │   └── policy.go              Retry and validation policy
-├── inference/
-│   ├── client.go              Backend-neutral client interface
-│   ├── openai.go              OpenAI-compatible adapter
-│   └── llamacpp.go            llama.cpp configuration
 └── httpapi/
     ├── handler.go             HTTP transport mapping
     └── types.go               Request and response DTOs
@@ -87,11 +87,11 @@ cmd/* -> internal/application -> lib.Model
   |              |                 |
   |              +-----------> models/*
   |              |
-  |              +-----------> internal/inference interface
+  |              +-----------> lib/inference.Client
   |
   +-> internal/httpapi -> internal/application
 
-internal/inference adapters -> external model servers
+lib/inference/openai -> user-managed OpenAI-compatible server
 ```
 
 The `lib` package never imports a concrete model, transport, or model client.
@@ -108,7 +108,7 @@ CLI and REST entry points should call the same application service:
 4. Check model capabilities and language support.
 5. Build chat input with `model.BuildInput`.
 6. Select a generation profile with `model.Options`.
-7. Send neutral input and options through an inference adapter.
+7. Send neutral input and options through an `inference.Client`.
 8. Validate raw output with `transliter.ValidateTranslation`.
 9. Retry or fail according to application policy.
 10. Return raw translation to the caller.
@@ -123,26 +123,34 @@ if !model.SupportsLanguage(source) || !model.SupportsLanguage(target) {
 }
 ```
 
-## Suggested inference interface
+## Inference interfaces
 
 ```go
-type ModelClient interface {
-	Generate(
-		ctx context.Context,
-		descriptor transliter.Descriptor,
-		input transliter.ModelInput,
-		options transliter.GenerationOptions,
-	) (string, error)
+type Request interface {
+	ModelName() string
+	ModelInput() transliter.ModelInput
+	GenerationOptions() transliter.GenerationOptions
 }
 
-type Translator interface {
-	Translate(ctx context.Context, request TranslateRequest) (Translation, error)
+type Response interface {
+	OutputText() string
+	ProviderModel() string
+	FinishReason() string
+	TokenUsage() Usage
+}
+
+type Client interface {
+	Generate(context.Context, Request) (Response, error)
 }
 ```
 
-An adapter maps neutral fields into llama.cpp, vLLM, SGLang, or another
-OpenAI-compatible API. Backend configuration does not belong in
-`TranslationRequest`.
+The request and response sides are deliberately independent. The OpenAI client
+also exposes separate `RequestEncoder` and `ResponseDecoder` interfaces so a
+deployment can adapt one side without replacing transport or model packages.
+
+The library calls only a user-managed OpenAI-compatible API. It does not launch
+or supervise llama.cpp or any other model process. Backend configuration does
+not belong in `TranslationRequest`.
 
 ## CLI guidance
 
@@ -157,10 +165,14 @@ A first CLI can support:
 - glossary and style options where the model declares support;
 - official or deterministic option profiles;
 - validation-only mode;
+- OpenAI-compatible API base URL, server model, and timeout;
 - non-zero exit codes for inference and contract failures.
 
 Raw translation should be the default stdout format. Diagnostics belong on
 stderr so shell pipelines remain reliable.
+
+The API key must be read from `TRANSLITER_API_KEY`; it must not be accepted as a
+CLI flag.
 
 ## REST guidance
 
@@ -183,10 +195,11 @@ The model returns raw translation. The HTTP handler can wrap it afterward:
 Request size limits, timeouts, cancellation, authentication, concurrency
 limits, and rate limiting belong in the server.
 
-## Backend adapters
+## OpenAI-compatible transport
 
-Start with an OpenAI-compatible adapter if the selected server exposes
-`/v1/chat/completions`. Keep these differences inside the adapter:
+`lib/inference/openai` calls `POST {base_url}/chat/completions`. The same path
+can target Ollama, LM Studio, llama-server, vLLM, or another compatible server
+operated by the user. Keep these differences inside request or response codecs:
 
 - model identifier and base URL;
 - authentication headers;
@@ -196,6 +209,10 @@ Start with an OpenAI-compatible adapter if the selected server exposes
 - sampling and EOS behavior;
 - context and output limits;
 - backend-specific errors.
+
+There is no llama.cpp-specific client or process manager. If a server accepts a
+different request extension or response shape, supply another
+`RequestEncoder` or `ResponseDecoder`.
 
 ## Adding another model
 

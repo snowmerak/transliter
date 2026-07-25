@@ -11,8 +11,8 @@ extensible Go interface. It currently supports:
 - Google TranslateGemma 27B IT
 
 The project builds model inputs, separates official and experimental generation
-options, and validates structural output contracts. It does not yet call
-llama.cpp or another inference server.
+options, validates structural output contracts, and can call a user-managed
+OpenAI-compatible inference endpoint.
 
 > The repository is named `transliter`, but the requested Go module path is
 > `github.com/snowmerak/translter`.
@@ -40,6 +40,8 @@ adapters.
 ```text
 .
 ├── lib/                              Shared interfaces, prompts, fences, validation
+│   └── inference/
+│       └── openai/                   OpenAI-compatible HTTP client
 ├── models/
 │   ├── catalog/                      Built-in model discovery
 │   ├── hymt2/
@@ -130,9 +132,89 @@ content:
 }
 ```
 
-An inference adapter can serialize `ModelInput` directly into an
-OpenAI-compatible request, then map `GenerationOptions` into backend-specific
-fields.
+The bundled OpenAI-compatible client serializes this `ModelInput` directly.
+
+## Call an OpenAI-compatible server
+
+`transliter` connects to an inference server that the user operates. It does
+not download models or start, supervise, or stop Ollama, LM Studio,
+`llama-server`, vLLM, or another model process.
+
+Configure the endpoint with environment variables:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `TRANSLITER_API_BASE_URL` | `http://127.0.0.1:8080/v1` | OpenAI-compatible API base URL |
+| `TRANSLITER_API_MODEL` | none | Server-side model name or alias |
+| `TRANSLITER_API_TIMEOUT` | `2m` | Go duration for one HTTP request |
+| `TRANSLITER_API_KEY` | none | Bearer token; read only from the environment |
+
+The API key is intentionally absent from `openai.Config`. A CLI can load
+environment defaults, call `openai.RegisterFlags`, and parse `--api-base-url`,
+`--api-model`, and `--api-timeout`. The helper deliberately does not register an
+API-key flag.
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	transliter "github.com/snowmerak/translter/lib"
+	"github.com/snowmerak/translter/lib/inference"
+	"github.com/snowmerak/translter/lib/inference/openai"
+	hymt2 "github.com/snowmerak/translter/models/hymt2/v30ba3b"
+)
+
+func main() {
+	model := hymt2.New()
+	input, err := model.BuildInput(transliter.TranslationRequest{
+		Source:         "The service is ready.",
+		SourceLanguage: transliter.LanguageEnglish,
+		TargetLanguage: transliter.LanguageKorean,
+		Kind:           transliter.PromptText,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	options, err := model.Options(transliter.ProfileOfficial)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	config, err := openai.ConfigFromEnv()
+	if err != nil {
+		log.Fatal(err)
+	}
+	client, err := openai.New(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+	response, err := client.Generate(
+		context.Background(),
+		inference.NewRequest("", input, options),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Print(response.OutputText())
+}
+```
+
+An explicit model name passed to `inference.NewRequest` takes precedence over
+`TRANSLITER_API_MODEL`. This is useful when one application talks to a
+multi-model server.
+
+The default request encoder includes `top_k`, `repetition_penalty`, and
+`do_sample` as common local-server extensions. They are not core OpenAI
+parameters. A server that rejects or renames them can provide another
+`openai.RequestEncoder`; response differences are handled independently through
+`openai.ResponseDecoder`.
+
+See [OpenAI-compatible inference](docs/inference-api.md) for the contracts and
+configuration policy.
 
 ## Built-in model discovery
 
@@ -228,7 +310,8 @@ The planned runtime layers remain separate:
 cmd/transliter/             CLI entry point
 cmd/transliter-server/      REST server entry point
 internal/application/       Model selection, orchestration, validation, retry
-internal/inference/         llama.cpp/OpenAI-compatible adapters
+lib/inference/              Transport-neutral request and response contracts
+lib/inference/openai/       OpenAI-compatible HTTP client and codecs
 internal/httpapi/           HTTP handlers and DTOs
 api/openapi.yaml            Optional public REST contract
 ```
