@@ -71,9 +71,9 @@ Keep the same delimiter count, spelling, and order. Do not merge, split, reorder
 // TranslationRequest is the input to BuildPrompt.
 type TranslationRequest struct {
 	Source                 string
-	TargetLanguage         string
+	TargetLanguage         Language
 	Kind                   PromptKind
-	SourceLanguage         string
+	SourceLanguage         Language
 	Glossary               map[string]string
 	Style                  string
 	Audience               string
@@ -83,8 +83,14 @@ type TranslationRequest struct {
 
 // BuildPrompt constructs one standalone user prompt with a source-safe fence.
 func BuildPrompt(request TranslationRequest) (string, error) {
-	if strings.TrimSpace(request.TargetLanguage) == "" {
+	if strings.TrimSpace(request.TargetLanguage.String()) == "" {
 		return "", fmt.Errorf("target language must not be empty")
+	}
+	if !request.TargetLanguage.Valid() {
+		return "", fmt.Errorf("unsupported target language %q", request.TargetLanguage)
+	}
+	if request.SourceLanguage != "" && !request.SourceLanguage.Valid() {
+		return "", fmt.Errorf("unsupported source language %q", request.SourceLanguage)
 	}
 	if request.Kind == "" {
 		request.Kind = PromptText
@@ -105,9 +111,9 @@ func BuildPrompt(request TranslationRequest) (string, error) {
 
 	task := "Translate the following"
 	if request.SourceLanguage != "" {
-		task += " from " + request.SourceLanguage
+		task += " from " + request.SourceLanguage.String()
 	}
-	task += " into " + request.TargetLanguage + "."
+	task += " into " + request.TargetLanguage.String() + "."
 
 	sections := []string{
 		task,

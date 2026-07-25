@@ -91,6 +91,10 @@ Both CLI and REST entry points should call the same application service:
 This keeps CLI output pipe-friendly while allowing the server to return
 structured metadata.
 
+CLI flags and REST string fields should be converted with
+`transliter.ParseLanguage`. Choice lists or metadata endpoints can use
+`transliter.SupportedLanguages`.
+
 ## Suggested application interface
 
 The application layer can define its own model client without exposing an HTTP

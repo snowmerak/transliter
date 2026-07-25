@@ -133,7 +133,7 @@ Use `Kind: PromptMixedCode` and pass protected identifiers to
 ```go
 request := transliter.TranslationRequest{
 	Source:         "Create a pull request in the repository.",
-	TargetLanguage: "Korean",
+	TargetLanguage: transliter.LanguageKorean,
 	Kind:           transliter.PromptGlossary,
 	Glossary: map[string]string{
 		"pull request": "풀 리퀘스트",
@@ -155,7 +155,7 @@ The target glossary terms are mandatory, not stylistic suggestions.
 ```go
 request := transliter.TranslationRequest{
 	Source:         "Restart the service now.",
-	TargetLanguage: "Korean",
+	TargetLanguage: transliter.LanguageKorean,
 	Kind:           transliter.PromptStyleAudience,
 	Style:          "formal operations manual",
 	Audience:       "site reliability engineers",
