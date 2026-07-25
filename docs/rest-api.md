@@ -172,8 +172,8 @@ Environment variables:
 | Variable | Default |
 | --- | --- |
 | `TRANSLITER_HTTP_ADDRESS` | `:8080` |
-| `TRANSLITER_QUEUE_BACKEND` | `memory` |
-| `TRANSLITER_STORE_BACKEND` | `memory` |
+| `TRANSLITER_QUEUE_BACKEND` | `nats-embedded` |
+| `TRANSLITER_STORE_BACKEND` | `sqlite` |
 | `TRANSLITER_WORKERS` | `1` |
 | `TRANSLITER_JOB_TIMEOUT` | `10m` |
 | `TRANSLITER_JOB_RETENTION` | `720h` |
@@ -181,10 +181,10 @@ Environment variables:
 | `TRANSLITER_REDIS_PREFIX` | `transliter` |
 | `TRANSLITER_POSTGRES_URL` | none |
 | `TRANSLITER_MYSQL_DSN` | none |
-| `TRANSLITER_SQLITE_PATH` | none |
+| `TRANSLITER_SQLITE_PATH` | `transliter-jobs.db` |
 | `TRANSLITER_NATS_URL` | NATS client default |
 | `TRANSLITER_NATS_STORE_DIR` | NATS temporary/default directory |
-| `TRANSLITER_NATS_EMBEDDED_MEMORY` | `false` |
+| `TRANSLITER_NATS_EMBEDDED_MEMORY` | `true` |
 
 Backend connection strings may contain credentials and are environment-only.
 Command-line flags override non-secret environment defaults.

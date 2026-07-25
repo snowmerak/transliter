@@ -331,8 +331,9 @@ export TRANSLITER_API_MODEL='local-model-name'
 go run ./cmd/transliter-server
 ```
 
-The default queue and store are in-memory. Redis, PostgreSQL, NATS JetStream,
-embedded JetStream, MySQL, and pure-Go SQLite combinations are also available.
+The default queue is embedded JetStream (in-memory stream) and the default store
+is pure-Go SQLite at `transliter-jobs.db`. Redis, PostgreSQL, external NATS
+JetStream, MySQL, and in-memory combinations are also available.
 The model-server key remains separate in `TRANSLITER_API_KEY`.
 
 See [REST API and job backends](docs/rest-api.md) for request examples,

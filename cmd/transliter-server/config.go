@@ -44,13 +44,13 @@ type serverConfig struct {
 func configFromEnv() (serverConfig, error) {
 	config := serverConfig{
 		HTTPAddress:  valueOrDefault(envHTTPAddress, ":8080"),
-		QueueBackend: valueOrDefault(envQueueBackend, "memory"),
-		StoreBackend: valueOrDefault(envStoreBackend, "memory"),
+		QueueBackend: valueOrDefault(envQueueBackend, "nats-embedded"),
+		StoreBackend: valueOrDefault(envStoreBackend, "sqlite"),
 		RedisURL:     os.Getenv(envRedisURL),
 		RedisPrefix:  valueOrDefault(envRedisPrefix, "transliter"),
 		PostgresURL:  os.Getenv(envPostgresURL),
 		MySQLDSN:     os.Getenv(envMySQLDSN),
-		SQLitePath:   os.Getenv(envSQLitePath),
+		SQLitePath:   valueOrDefault(envSQLitePath, "transliter-jobs.db"),
 		NATSURL:      os.Getenv(envNATSURL),
 		NATSStoreDir: os.Getenv(envNATSStoreDir),
 	}
@@ -67,7 +67,7 @@ func configFromEnv() (serverConfig, error) {
 	if err != nil {
 		return serverConfig{}, err
 	}
-	config.NATSEmbeddedMemory, err = boolFromEnv(envNATSEmbeddedMemory, false)
+	config.NATSEmbeddedMemory, err = boolFromEnv(envNATSEmbeddedMemory, true)
 	if err != nil {
 		return serverConfig{}, err
 	}
