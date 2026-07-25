@@ -21,12 +21,34 @@ import (
 )
 
 const (
-	integrationBaseURL              = "http://macmini:11888/v1"
-	defaultIntegrationProviderModel = "Qwen3.5-9B-MLX-4bit"
-	integrationAPIKey               = "integration-test-key"
+	integrationBaseURL = "http://macmini:1234/v1"
+	integrationAPIKey  = "integration-test-key"
 )
 
-func requireIntegrationInference(t *testing.T) string {
+// catalogID -> preferred provider model ids on macmini:1234 (first match wins).
+var hyIntegrationCases = []struct {
+	name               string
+	catalogModel       string
+	providerCandidates []string
+}{
+	{
+		name:               "1.8b",
+		catalogModel:       "hymt2-1.8b",
+		providerCandidates: []string{"hy-mt2-1.8b"},
+	},
+	{
+		name:               "7b",
+		catalogModel:       "hymt2-7b",
+		providerCandidates: []string{"hy-mt2-7b"},
+	},
+	{
+		name:               "30b-a3b",
+		catalogModel:       "hymt2-30b-a3b",
+		providerCandidates: []string{"hy-mt2-30b-a3b-mlx", "hy-mt2-30b-a3b"},
+	},
+}
+
+func requireIntegrationModels(t *testing.T) map[string]struct{} {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -54,37 +76,42 @@ func requireIntegrationInference(t *testing.T) string {
 		t.Skipf("macmini inference unavailable: decode models: %v", err)
 	}
 
-	ids := make([]string, 0, len(payload.Data))
-	seen := make(map[string]struct{}, len(payload.Data))
+	ids := make(map[string]struct{}, len(payload.Data))
 	for _, model := range payload.Data {
 		id := strings.TrimSpace(model.ID)
 		if id == "" {
 			continue
 		}
-		if _, ok := seen[id]; ok {
-			continue
-		}
-		seen[id] = struct{}{}
-		ids = append(ids, id)
-	}
-
-	providerModel := strings.TrimSpace(os.Getenv("TRANSLITER_API_MODEL"))
-	if providerModel != "" {
-		return providerModel
-	}
-	for _, id := range ids {
-		if id == defaultIntegrationProviderModel {
-			return id
-		}
+		ids[id] = struct{}{}
 	}
 	if len(ids) == 0 {
 		t.Skip("no models on inference server")
 	}
-	return ids[0]
+	return ids
+}
+
+func resolveProviderModel(available map[string]struct{}, candidates []string) (string, bool) {
+	if override := strings.TrimSpace(os.Getenv("TRANSLITER_API_MODEL")); override != "" {
+		for _, candidate := range candidates {
+			if override == candidate {
+				if _, ok := available[override]; ok {
+					return override, true
+				}
+				return "", false
+			}
+		}
+		// Override targets a different model; keep scanning candidates.
+	}
+	for _, candidate := range candidates {
+		if _, ok := available[candidate]; ok {
+			return candidate, true
+		}
+	}
+	return "", false
 }
 
 func TestIntegrationTranslationJobDefaultBackends(t *testing.T) {
-	providerModel := requireIntegrationInference(t)
+	available := requireIntegrationModels(t)
 
 	authenticator, err := jobs.NewStaticAuthenticator(map[string]string{
 		"alice": integrationAPIKey,
@@ -101,17 +128,18 @@ func TestIntegrationTranslationJobDefaultBackends(t *testing.T) {
 		StoreBackend:       "sqlite",
 		SQLitePath:         filepath.Join(t.TempDir(), "jobs.db"),
 		NATSEmbeddedMemory: true,
-		JobTimeout:         2 * time.Minute,
+		JobTimeout:         5 * time.Minute,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer backends.Close()
 
+	// Default client model is only a fallback; each job sets provider_model.
 	client, err := openai.New(openai.Config{
 		BaseURL: integrationBaseURL,
-		Model:   providerModel,
-		Timeout: 2 * time.Minute,
+		Model:   "hy-mt2-1.8b",
+		Timeout: 5 * time.Minute,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -124,7 +152,7 @@ func TestIntegrationTranslationJobDefaultBackends(t *testing.T) {
 		Store:       backends.store,
 		Processor:   processor,
 		Concurrency: 1,
-		JobTimeout:  2 * time.Minute,
+		JobTimeout:  5 * time.Minute,
 	}
 	go func() { schedulerDone <- scheduler.Run(ctx) }()
 	defer func() {
@@ -158,8 +186,29 @@ func TestIntegrationTranslationJobDefaultBackends(t *testing.T) {
 		t.Fatalf("unexpected healthz body: %+v", healthBody)
 	}
 
+	ran := 0
+	for _, tc := range hyIntegrationCases {
+		tc := tc
+		providerModel, ok := resolveProviderModel(available, tc.providerCandidates)
+		if !ok {
+			t.Logf("skip %s: none of %v present on %s", tc.name, tc.providerCandidates, integrationBaseURL)
+			continue
+		}
+		ran++
+		t.Run(tc.name, func(t *testing.T) {
+			runIntegrationTranslationJob(t, server.URL, tc.catalogModel, providerModel)
+		})
+	}
+	if ran == 0 {
+		t.Fatal("no Hy-MT2 provider models available on inference server")
+	}
+}
+
+func runIntegrationTranslationJob(t *testing.T, baseURL, catalogModel, providerModel string) {
+	t.Helper()
+
 	createBody := fmt.Sprintf(`{
-		"model": "hymt2-1.8b",
+		"model": %q,
 		"provider_model": %q,
 		"profile": "official",
 		"translation": {
@@ -168,11 +217,11 @@ func TestIntegrationTranslationJobDefaultBackends(t *testing.T) {
 			"target_language": "Korean",
 			"kind": "text"
 		}
-	}`, providerModel)
+	}`, catalogModel, providerModel)
 	create := integrationAPIRequest(
 		t,
 		http.MethodPost,
-		server.URL+"/v1/jobs",
+		baseURL+"/v1/jobs",
 		integrationAPIKey,
 		createBody,
 	)
@@ -187,12 +236,12 @@ func TestIntegrationTranslationJobDefaultBackends(t *testing.T) {
 	}
 
 	var completed jobs.Job
-	deadline := time.Now().Add(3 * time.Minute)
+	deadline := time.Now().Add(5 * time.Minute)
 	for {
 		response := integrationAPIRequest(
 			t,
 			http.MethodGet,
-			server.URL+"/v1/jobs/"+created.ID,
+			baseURL+"/v1/jobs/"+created.ID,
 			integrationAPIKey,
 			"",
 		)
@@ -205,6 +254,12 @@ func TestIntegrationTranslationJobDefaultBackends(t *testing.T) {
 			if completed.Result == nil || strings.TrimSpace(completed.Result.Translation) == "" {
 				t.Fatalf("succeeded job missing translation: %+v", completed)
 			}
+			t.Logf(
+				"catalog=%s provider=%s translation=%q",
+				catalogModel,
+				providerModel,
+				completed.Result.Translation,
+			)
 			return
 		case jobs.StatusFailed:
 			t.Fatalf("job failed: %+v", completed)
