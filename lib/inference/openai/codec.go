@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 
-	transliter "github.com/snowmerak/translter/lib"
-	"github.com/snowmerak/translter/lib/inference"
+	transliter "github.com/snowmerak/transliter/lib"
+	"github.com/snowmerak/transliter/lib/inference"
 )
 
 // RequestEncoder maps a transport-neutral request to an OpenAI-compatible

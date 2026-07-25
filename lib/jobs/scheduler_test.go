@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	transliter "github.com/snowmerak/translter/lib"
-	"github.com/snowmerak/translter/lib/jobs"
-	"github.com/snowmerak/translter/lib/jobs/memory"
+	transliter "github.com/snowmerak/transliter/lib"
+	"github.com/snowmerak/transliter/lib/jobs"
+	"github.com/snowmerak/transliter/lib/jobs/memory"
 )
 
 type processorFunc func(context.Context, jobs.Job) (jobs.Result, error)

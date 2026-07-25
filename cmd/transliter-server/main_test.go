@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 	"time"
 
-	transliter "github.com/snowmerak/translter/lib"
-	"github.com/snowmerak/translter/lib/jobs"
+	transliter "github.com/snowmerak/transliter/lib"
+	"github.com/snowmerak/transliter/lib/jobs"
 )
 
 func TestConfigFromEnv(t *testing.T) {
@@ -41,6 +42,22 @@ func TestBuildMemoryBackends(t *testing.T) {
 	defer backends.Close()
 	if backends.queue == nil || backends.store == nil {
 		t.Fatal("memory backends were not configured")
+	}
+}
+
+func TestBuildSQLiteStoreBackend(t *testing.T) {
+	backends, err := buildBackends(context.Background(), serverConfig{
+		QueueBackend: "memory",
+		StoreBackend: "sqlite",
+		SQLitePath:   filepath.Join(t.TempDir(), "jobs.db"),
+		JobTimeout:   time.Minute,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer backends.Close()
+	if backends.queue == nil || backends.store == nil {
+		t.Fatal("sqlite store backend was not configured")
 	}
 }
 

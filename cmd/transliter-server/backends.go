@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/snowmerak/translter/lib/jobs"
-	"github.com/snowmerak/translter/lib/jobs/memory"
-	mysqlstore "github.com/snowmerak/translter/lib/jobs/mysql"
-	"github.com/snowmerak/translter/lib/jobs/natsjs"
-	"github.com/snowmerak/translter/lib/jobs/postgres"
-	redisjobs "github.com/snowmerak/translter/lib/jobs/redis"
+	"github.com/snowmerak/transliter/lib/jobs"
+	"github.com/snowmerak/transliter/lib/jobs/memory"
+	mysqlstore "github.com/snowmerak/transliter/lib/jobs/mysql"
+	"github.com/snowmerak/transliter/lib/jobs/natsjs"
+	"github.com/snowmerak/transliter/lib/jobs/postgres"
+	redisjobs "github.com/snowmerak/transliter/lib/jobs/redis"
+	sqlitestore "github.com/snowmerak/transliter/lib/jobs/sqlite"
 )
 
 type backendSet struct {
@@ -90,6 +91,18 @@ func buildBackends(ctx context.Context, config serverConfig) (*backendSet, error
 		set.store = store
 	}
 
+	if config.StoreBackend == "sqlite" {
+		if config.SQLitePath == "" {
+			return nil, fmt.Errorf("%s is required for SQLite", envSQLitePath)
+		}
+		store, err := sqlitestore.New(ctx, config.SQLitePath)
+		if err != nil {
+			return nil, err
+		}
+		set.closes = append(set.closes, func() { _ = store.Close() })
+		set.store = store
+	}
+
 	switch config.QueueBackend {
 	case "nats":
 		queue, err := natsjs.New(ctx, natsjs.Config{
@@ -120,7 +133,7 @@ func buildBackends(ctx context.Context, config serverConfig) (*backendSet, error
 	}
 
 	switch config.StoreBackend {
-	case "memory", "redis", "postgres", "mysql":
+	case "memory", "redis", "postgres", "mysql", "sqlite":
 	default:
 		return nil, fmt.Errorf("unknown store backend %q", config.StoreBackend)
 	}

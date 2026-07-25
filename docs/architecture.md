@@ -75,7 +75,8 @@ lib/
 │   ├── redis/                 Queue and store
 │   ├── postgres/              Queue and store
 │   ├── natsjs/                External or embedded queue
-│   └── mysql/                 Store
+│   ├── mysql/                 Store
+│   └── sqlite/                Pure-Go store
 └── restapi/                   Authenticated asynchronous HTTP API
 ```
 

@@ -135,6 +135,7 @@ Queue and job storage are selected independently:
 | NATS JetStream | yes | no | External durable work queue |
 | Embedded NATS JetStream | yes | no | In-process memory or file-backed queue |
 | MySQL | no | yes | InnoDB job records and owner history |
+| SQLite via modernc.org/sqlite | no | yes | Pure-Go file or memory DSN; no CGO |
 
 Examples:
 
@@ -143,7 +144,8 @@ Examples:
 --queue-backend redis          --store-backend redis
 --queue-backend postgres       --store-backend postgres
 --queue-backend nats           --store-backend mysql
---queue-backend nats-embedded  --store-backend postgres
+--queue-backend nats-embedded  --store-backend sqlite
+--queue-backend memory         --store-backend sqlite
 ```
 
 The PostgreSQL queue table intentionally has no foreign key to the PostgreSQL
@@ -179,6 +181,7 @@ Environment variables:
 | `TRANSLITER_REDIS_PREFIX` | `transliter` |
 | `TRANSLITER_POSTGRES_URL` | none |
 | `TRANSLITER_MYSQL_DSN` | none |
+| `TRANSLITER_SQLITE_PATH` | none |
 | `TRANSLITER_NATS_URL` | NATS client default |
 | `TRANSLITER_NATS_STORE_DIR` | NATS temporary/default directory |
 | `TRANSLITER_NATS_EMBEDDED_MEMORY` | `false` |
@@ -186,9 +189,10 @@ Environment variables:
 Backend connection strings may contain credentials and are environment-only.
 Command-line flags override non-secret environment defaults.
 
-PostgreSQL and MySQL constructors create the required tables and indexes.
-Production deployments should still manage schema changes through their normal
-migration workflow; exported `Schema` constants make the initial DDL explicit.
+PostgreSQL, MySQL, and SQLite constructors create the required tables and
+indexes. Production deployments should still manage schema changes through their
+normal migration workflow; exported `Schema` constants make the initial DDL
+explicit.
 
 ## Embedded JetStream
 
@@ -225,8 +229,9 @@ failed and returns `503`.
 
 ## Retention
 
-The default retention is 30 days. In-memory, PostgreSQL, and MySQL stores expose
-explicit expiration cleanup. Redis uses key TTLs and expiring owner indexes.
+The default retention is 30 days. In-memory, PostgreSQL, MySQL, and SQLite
+stores expose explicit expiration cleanup. Redis uses key TTLs and expiring
+owner indexes.
 
 The server runs expiration cleanup hourly. Increase
 `TRANSLITER_JOB_RETENTION` if clients need a longer history window.

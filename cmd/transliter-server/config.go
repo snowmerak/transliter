@@ -18,6 +18,7 @@ const (
 	envRedisPrefix        = "TRANSLITER_REDIS_PREFIX"
 	envPostgresURL        = "TRANSLITER_POSTGRES_URL"
 	envMySQLDSN           = "TRANSLITER_MYSQL_DSN"
+	envSQLitePath         = "TRANSLITER_SQLITE_PATH"
 	envNATSURL            = "TRANSLITER_NATS_URL"
 	envNATSStoreDir       = "TRANSLITER_NATS_STORE_DIR"
 	envNATSEmbeddedMemory = "TRANSLITER_NATS_EMBEDDED_MEMORY"
@@ -34,6 +35,7 @@ type serverConfig struct {
 	RedisPrefix        string
 	PostgresURL        string
 	MySQLDSN           string
+	SQLitePath         string
 	NATSURL            string
 	NATSStoreDir       string
 	NATSEmbeddedMemory bool
@@ -48,6 +50,7 @@ func configFromEnv() (serverConfig, error) {
 		RedisPrefix:  valueOrDefault(envRedisPrefix, "transliter"),
 		PostgresURL:  os.Getenv(envPostgresURL),
 		MySQLDSN:     os.Getenv(envMySQLDSN),
+		SQLitePath:   os.Getenv(envSQLitePath),
 		NATSURL:      os.Getenv(envNATSURL),
 		NATSStoreDir: os.Getenv(envNATSStoreDir),
 	}

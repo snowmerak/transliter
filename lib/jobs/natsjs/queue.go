@@ -8,7 +8,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	"github.com/snowmerak/translter/lib/jobs"
+	"github.com/snowmerak/transliter/lib/jobs"
 )
 
 type Config struct {

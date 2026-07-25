@@ -14,9 +14,6 @@ The project builds model inputs, separates official and experimental generation
 options, validates structural output contracts, and can call a user-managed
 OpenAI-compatible inference endpoint.
 
-> The repository is named `transliter`, but the requested Go module path is
-> `github.com/snowmerak/translter`.
-
 ## Design
 
 The common library contains model-independent contracts:
@@ -73,8 +70,8 @@ other backend drivers on their current supported release lines.
 Install only the model packages an application needs:
 
 ```bash
-go get github.com/snowmerak/translter/lib
-go get github.com/snowmerak/translter/models/hymt2/v30ba3b
+go get github.com/snowmerak/transliter/lib
+go get github.com/snowmerak/transliter/models/hymt2/v30ba3b
 ```
 
 ## Build model input through the common interface
@@ -87,8 +84,8 @@ import (
 	"fmt"
 	"log"
 
-	transliter "github.com/snowmerak/translter/lib"
-	hymt2 "github.com/snowmerak/translter/models/hymt2/v30ba3b"
+	transliter "github.com/snowmerak/transliter/lib"
+	hymt2 "github.com/snowmerak/transliter/models/hymt2/v30ba3b"
 )
 
 func main() {
@@ -169,10 +166,10 @@ import (
 	"fmt"
 	"log"
 
-	transliter "github.com/snowmerak/translter/lib"
-	"github.com/snowmerak/translter/lib/inference"
-	"github.com/snowmerak/translter/lib/inference/openai"
-	hymt2 "github.com/snowmerak/translter/models/hymt2/v30ba3b"
+	transliter "github.com/snowmerak/transliter/lib"
+	"github.com/snowmerak/transliter/lib/inference"
+	"github.com/snowmerak/transliter/lib/inference/openai"
+	hymt2 "github.com/snowmerak/transliter/models/hymt2/v30ba3b"
 )
 
 func main() {
@@ -335,8 +332,8 @@ go run ./cmd/transliter-server
 ```
 
 The default queue and store are in-memory. Redis, PostgreSQL, NATS JetStream,
-embedded JetStream, and MySQL combinations are also available. The model-server
-key remains separate in `TRANSLITER_API_KEY`.
+embedded JetStream, MySQL, and pure-Go SQLite combinations are also available.
+The model-server key remains separate in `TRANSLITER_API_KEY`.
 
 See [REST API and job backends](docs/rest-api.md) for request examples,
 configuration, persistence characteristics, and the complete backend matrix.

@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	transliter "github.com/snowmerak/translter/lib"
+	transliter "github.com/snowmerak/transliter/lib"
 )
 
 var (

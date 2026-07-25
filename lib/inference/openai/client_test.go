@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	transliter "github.com/snowmerak/translter/lib"
-	"github.com/snowmerak/translter/lib/inference"
+	transliter "github.com/snowmerak/transliter/lib"
+	"github.com/snowmerak/transliter/lib/inference"
 )
 
 func TestConfigFromEnv(t *testing.T) {

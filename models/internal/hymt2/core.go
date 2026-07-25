@@ -3,7 +3,7 @@ package hymt2
 import (
 	"fmt"
 
-	transliter "github.com/snowmerak/translter/lib"
+	transliter "github.com/snowmerak/transliter/lib"
 )
 
 // Core implements behavior shared by the three Hy-MT2 size packages.

@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/snowmerak/translter/lib/inference"
+	"github.com/snowmerak/transliter/lib/inference"
 )
 
 const defaultMaxResponseBytes = 4 << 20

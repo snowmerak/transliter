@@ -4,7 +4,7 @@ package inference
 import (
 	"context"
 
-	transliter "github.com/snowmerak/translter/lib"
+	transliter "github.com/snowmerak/transliter/lib"
 )
 
 // Request supplies the model input and generation settings to a Client.

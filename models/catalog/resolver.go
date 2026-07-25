@@ -1,6 +1,6 @@
 package catalog
 
-import transliter "github.com/snowmerak/translter/lib"
+import transliter "github.com/snowmerak/transliter/lib"
 
 // Resolver adapts the built-in catalog to jobs.ModelResolver.
 type Resolver struct{}

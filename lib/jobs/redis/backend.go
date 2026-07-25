@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/redis/rueidis"
-	"github.com/snowmerak/translter/lib/jobs"
+	"github.com/snowmerak/transliter/lib/jobs"
 )
 
 type Backend struct {

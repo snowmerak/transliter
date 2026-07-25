@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/snowmerak/translter/lib/jobs"
+	"github.com/snowmerak/transliter/lib/jobs"
 )
 
 type Backend struct {

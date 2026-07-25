@@ -12,11 +12,11 @@ import (
 	"syscall"
 	"time"
 
-	transliter "github.com/snowmerak/translter/lib"
-	"github.com/snowmerak/translter/lib/inference/openai"
-	"github.com/snowmerak/translter/lib/jobs"
-	"github.com/snowmerak/translter/lib/restapi"
-	"github.com/snowmerak/translter/models/catalog"
+	transliter "github.com/snowmerak/transliter/lib"
+	"github.com/snowmerak/transliter/lib/inference/openai"
+	"github.com/snowmerak/transliter/lib/jobs"
+	"github.com/snowmerak/transliter/lib/restapi"
+	"github.com/snowmerak/transliter/models/catalog"
 )
 
 func main() {
@@ -39,7 +39,7 @@ func run() error {
 	flags := flag.NewFlagSet("transliter-server", flag.ContinueOnError)
 	flags.StringVar(&config.HTTPAddress, "http-address", config.HTTPAddress, "HTTP listen address")
 	flags.StringVar(&config.QueueBackend, "queue-backend", config.QueueBackend, "memory, redis, postgres, nats, or nats-embedded")
-	flags.StringVar(&config.StoreBackend, "store-backend", config.StoreBackend, "memory, redis, postgres, or mysql")
+	flags.StringVar(&config.StoreBackend, "store-backend", config.StoreBackend, "memory, redis, postgres, mysql, or sqlite")
 	flags.IntVar(&config.Workers, "workers", config.Workers, "number of scheduler workers")
 	flags.DurationVar(&config.JobTimeout, "job-timeout", config.JobTimeout, "timeout for one translation job")
 	flags.DurationVar(&config.JobRetention, "job-retention", config.JobRetention, "completed job retention")

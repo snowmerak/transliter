@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/snowmerak/translter/lib/jobs"
+	"github.com/snowmerak/transliter/lib/jobs"
 )
 
 func TestOwnerHistoryAndExpiration(t *testing.T) {

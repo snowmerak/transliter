@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/snowmerak/translter/lib/jobs"
-	"github.com/snowmerak/translter/lib/jobs/memory"
+	"github.com/snowmerak/transliter/lib/jobs"
+	"github.com/snowmerak/transliter/lib/jobs/memory"
 	"gopkg.in/yaml.v3"
 )
 

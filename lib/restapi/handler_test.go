@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/snowmerak/translter/lib/jobs"
-	"github.com/snowmerak/translter/lib/jobs/memory"
+	"github.com/snowmerak/transliter/lib/jobs"
+	"github.com/snowmerak/transliter/lib/jobs/memory"
 )
 
 type processorFunc func(context.Context, jobs.Job) (jobs.Result, error)

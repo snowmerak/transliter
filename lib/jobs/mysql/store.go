@@ -10,7 +10,7 @@ import (
 	"time"
 
 	driver "github.com/go-sql-driver/mysql"
-	"github.com/snowmerak/translter/lib/jobs"
+	"github.com/snowmerak/transliter/lib/jobs"
 )
 
 const Schema = `

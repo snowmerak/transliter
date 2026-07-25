@@ -3,7 +3,7 @@ package translategemma
 import (
 	"fmt"
 
-	transliter "github.com/snowmerak/translter/lib"
+	transliter "github.com/snowmerak/transliter/lib"
 )
 
 // Core implements the official text chat-template contract shared by all

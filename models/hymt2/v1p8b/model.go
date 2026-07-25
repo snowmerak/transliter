@@ -2,8 +2,8 @@
 package v1p8b
 
 import (
-	transliter "github.com/snowmerak/translter/lib"
-	"github.com/snowmerak/translter/models/internal/hymt2"
+	transliter "github.com/snowmerak/transliter/lib"
+	"github.com/snowmerak/transliter/models/internal/hymt2"
 )
 
 // Model implements transliter.Model for Tencent Hy-MT2 1.8B.

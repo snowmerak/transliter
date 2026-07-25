@@ -2,8 +2,8 @@
 package v4b
 
 import (
-	transliter "github.com/snowmerak/translter/lib"
-	"github.com/snowmerak/translter/models/internal/translategemma"
+	transliter "github.com/snowmerak/transliter/lib"
+	"github.com/snowmerak/transliter/models/internal/translategemma"
 )
 
 // Model implements transliter.Model for Google TranslateGemma 4B IT.

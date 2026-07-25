@@ -5,13 +5,13 @@ import (
 	"strings"
 	"testing"
 
-	transliter "github.com/snowmerak/translter/lib"
-	hymt2v1p8b "github.com/snowmerak/translter/models/hymt2/v1p8b"
-	hymt2v30ba3b "github.com/snowmerak/translter/models/hymt2/v30ba3b"
-	hymt2v7b "github.com/snowmerak/translter/models/hymt2/v7b"
-	gemmav12b "github.com/snowmerak/translter/models/translategemma/v12b"
-	gemmav27b "github.com/snowmerak/translter/models/translategemma/v27b"
-	gemmav4b "github.com/snowmerak/translter/models/translategemma/v4b"
+	transliter "github.com/snowmerak/transliter/lib"
+	hymt2v1p8b "github.com/snowmerak/transliter/models/hymt2/v1p8b"
+	hymt2v30ba3b "github.com/snowmerak/transliter/models/hymt2/v30ba3b"
+	hymt2v7b "github.com/snowmerak/transliter/models/hymt2/v7b"
+	gemmav12b "github.com/snowmerak/transliter/models/translategemma/v12b"
+	gemmav27b "github.com/snowmerak/transliter/models/translategemma/v27b"
+	gemmav4b "github.com/snowmerak/transliter/models/translategemma/v4b"
 )
 
 func TestEveryPackageImplementsModelWithUniqueID(t *testing.T) {

@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	transliter "github.com/snowmerak/translter/lib"
-	"github.com/snowmerak/translter/lib/jobs"
+	transliter "github.com/snowmerak/transliter/lib"
+	"github.com/snowmerak/transliter/lib/jobs"
 )
 
 const (
