@@ -70,15 +70,15 @@ Keep the same delimiter count, spelling, and order. Do not merge, split, reorder
 
 // TranslationRequest describes a model-independent translation task.
 type TranslationRequest struct {
-	Source                 string
-	TargetLanguage         Language
-	Kind                   PromptKind
-	SourceLanguage         Language
-	Glossary               map[string]string
-	Style                  string
-	Audience               string
-	TranslatableAttributes []string
-	Delimiters             []string
+	Source                 string            `json:"source"`
+	TargetLanguage         Language          `json:"target_language"`
+	Kind                   PromptKind        `json:"kind,omitempty"`
+	SourceLanguage         Language          `json:"source_language,omitempty"`
+	Glossary               map[string]string `json:"glossary,omitempty"`
+	Style                  string            `json:"style,omitempty"`
+	Audience               string            `json:"audience,omitempty"`
+	TranslatableAttributes []string          `json:"translatable_attributes,omitempty"`
+	Delimiters             []string          `json:"delimiters,omitempty"`
 }
 
 // BuildPrompt constructs the shared rich user prompt used by Hy-MT2 packages.

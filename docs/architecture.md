@@ -21,17 +21,22 @@ Packages under `models/` own model-specific behavior:
 - plain or structured user-message content;
 - official and experimental generation settings.
 
-Runtime code will own:
+The executable composition root owns:
 
 - CLI flags and stdout/stderr policy;
-- HTTP routing, status codes, and response DTOs;
+- backend selection and lifecycle;
 - inference server URLs and non-secret configuration;
-- network timeouts and retries;
-- logging, metrics, tracing, and persistence.
+- network and job timeouts;
+- logging, metrics, and tracing.
 
 `lib/inference` owns transport-neutral request and response contracts.
 `lib/inference/openai` owns the reusable OpenAI-compatible HTTP client and reads
 its API key directly from the environment.
+
+`lib/jobs` owns asynchronous job, queue, store, authentication, processor, and
+scheduler contracts. Backend packages depend on those contracts independently.
+`lib/restapi` owns only authenticated HTTP mapping and does not select a
+database or queue.
 
 ## Model extension interface
 
@@ -57,62 +62,50 @@ model templates are not interchangeable:
 `models/catalog` exposes the built-in implementations for CLI and REST model
 discovery. Applications can also supply third-party `Model` values.
 
-## Planned runtime layout
+## Runtime layout
 
 ```text
 cmd/
-├── transliter/
-│   └── main.go                CLI composition root
-└── transliter-server/
-    └── main.go                REST server composition root
-internal/
-├── application/
-│   ├── service.go             Translation orchestration
-│   ├── models.go              Model registry and selection
-│   └── policy.go              Retry and validation policy
-└── httpapi/
-    ├── handler.go             HTTP transport mapping
-    └── types.go               Request and response DTOs
-api/
-└── openapi.yaml               Optional versioned REST contract
+└── transliter-server/         REST and scheduler composition root
+lib/
+├── inference/                 Model-server request/response contracts
+├── jobs/
+│   ├── memory/                Queue and store
+│   ├── redis/                 Queue and store
+│   ├── postgres/              Queue and store
+│   ├── natsjs/                External or embedded queue
+│   └── mysql/                 Store
+└── restapi/                   Authenticated asynchronous HTTP API
 ```
-
-Empty runtime directories are not committed until executable behavior exists.
 
 ## Dependency direction
 
 ```text
-cmd/* -> internal/application -> lib.Model
-  |              |                 ^
-  |              |                 |
-  |              +-----------> models/*
-  |              |
-  |              +-----------> lib/inference.Client
-  |
-  +-> internal/httpapi -> internal/application
-
-lib/inference/openai -> user-managed OpenAI-compatible server
+cmd/transliter-server
+  ├──> lib/restapi ──> lib/jobs.Queue + lib/jobs.Store
+  ├──> lib/jobs.Scheduler ──> lib/jobs.Processor
+  ├──> lib/jobs backends
+  ├──> models/catalog ──> lib.Model
+  └──> lib/inference/openai ──> user-managed model server
 ```
 
 The `lib` package never imports a concrete model, transport, or model client.
 Model packages import `lib`. Application code selects concrete models through
 the common interface.
 
-## Shared translation flow
+## Shared asynchronous translation flow
 
-CLI and REST entry points should call the same application service:
-
-1. Parse transport input.
-2. Resolve a concrete `transliter.Model`.
-3. Parse source and target languages.
-4. Check model capabilities and language support.
-5. Build chat input with `model.BuildInput`.
-6. Select a generation profile with `model.Options`.
-7. Send neutral input and options through an `inference.Client`.
-8. Validate raw output with `transliter.ValidateTranslation`.
-9. Retry or fail according to application policy.
-10. Return raw translation to the caller.
-11. Add a JSON envelope only at the HTTP boundary.
+1. Authenticate an inbound API key to an owner ID.
+2. Validate the model request.
+3. Store a queued job and enqueue only its ID.
+4. Return `202 Accepted`.
+5. Receive the job ID in a scheduler worker.
+6. Load the job and mark it running.
+7. Build model input and generation options.
+8. Call the OpenAI-compatible model server.
+9. Persist success or failure.
+10. Acknowledge the queue delivery.
+11. Serve the job or owner-scoped history until expiration.
 
 Language input should use `transliter.ParseLanguage`, then be checked against
 the selected model:
@@ -174,26 +167,29 @@ stderr so shell pipelines remain reliable.
 The API key must be read from `TRANSLITER_API_KEY`; it must not be accepted as a
 CLI flag.
 
-## REST guidance
+## REST API
 
-A first REST API can expose:
+The asynchronous REST API exposes:
 
-- `POST /v1/translations`;
-- `GET /v1/models`;
-- `GET /v1/languages?model=<id>`;
-- `GET /healthz`;
-- optional `GET /readyz`.
+- `POST /v1/jobs`;
+- `GET /v1/jobs/{id}`;
+- `GET /v1/jobs`;
+- `GET /healthz`.
 
-The model returns raw translation. The HTTP handler can wrap it afterward:
+The job result wraps raw model output only after inference:
 
 ```json
 {
-  "translation": "서비스가 준비되었습니다."
+  "status": "succeeded",
+  "result": {
+    "translation": "서비스가 준비되었습니다."
+  }
 }
 ```
 
-Request size limits, timeouts, cancellation, authentication, concurrency
-limits, and rate limiting belong in the server.
+Authentication, request size limits, owner isolation, and transport DTOs live
+in `lib/restapi`. Queueing, persistence, concurrency, and expiration remain
+behind `lib/jobs` contracts.
 
 ## OpenAI-compatible transport
 

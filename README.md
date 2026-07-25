@@ -40,8 +40,12 @@ adapters.
 ```text
 .
 ├── lib/                              Shared interfaces, prompts, fences, validation
-│   └── inference/
-│       └── openai/                   OpenAI-compatible HTTP client
+│   ├── inference/
+│   │   └── openai/                   OpenAI-compatible HTTP client
+│   ├── jobs/                         Queue, store, scheduler, and backend packages
+│   └── restapi/                      Asynchronous translation HTTP API
+├── cmd/
+│   └── transliter-server/            Runnable REST API and scheduler
 ├── models/
 │   ├── catalog/                      Built-in model discovery
 │   ├── hymt2/
@@ -62,6 +66,9 @@ Shared family implementation details live under `models/internal`; callers
 import only `lib`, a concrete model package, or `models/catalog`.
 
 ## Install
+
+The module requires Go 1.25 or newer. This keeps the embedded NATS server and
+other backend drivers on their current supported release lines.
 
 Install only the model packages an application needs:
 
@@ -302,25 +309,35 @@ The application must select validation options from the original translation
 request. Model output remains raw translated content; a REST handler can add a
 transport envelope after validation.
 
-## Future CLI and REST server
+## Asynchronous REST server
 
-The planned runtime layers remain separate:
+The bundled server authenticates a request, stores a job, sends its ID through
+a queue, and processes it with independent scheduler workers:
 
 ```text
-cmd/transliter/             CLI entry point
-cmd/transliter-server/      REST server entry point
-internal/application/       Model selection, orchestration, validation, retry
-lib/inference/              Transport-neutral request and response contracts
-lib/inference/openai/       OpenAI-compatible HTTP client and codecs
-internal/httpapi/           HTTP handlers and DTOs
-api/openapi.yaml            Optional public REST contract
+POST /v1/jobs
+GET  /v1/jobs/{job_id}
+GET  /v1/jobs
+GET  /healthz
 ```
 
-The application layer depends only on `transliter.Model`, so selecting a
-different model does not change transport or inference code.
+Inbound client keys are configured only through
+`TRANSLITER_SERVER_API_KEYS`, a JSON object mapping stable owner IDs to keys:
 
-See [application architecture](docs/architecture.md) for the complete request
-flow.
+```bash
+export TRANSLITER_SERVER_API_KEYS='{"alice":"replace-with-a-secret"}'
+export TRANSLITER_API_BASE_URL='http://127.0.0.1:1234/v1'
+export TRANSLITER_API_MODEL='local-model-name'
+go run ./cmd/transliter-server
+```
+
+The default queue and store are in-memory. Redis, PostgreSQL, NATS JetStream,
+embedded JetStream, and MySQL combinations are also available. The model-server
+key remains separate in `TRANSLITER_API_KEY`.
+
+See [REST API and job backends](docs/rest-api.md) for request examples,
+configuration, persistence characteristics, and the complete backend matrix.
+See [application architecture](docs/architecture.md) for dependency boundaries.
 
 ## Tests
 
