@@ -86,6 +86,7 @@ func run() error {
 		Authenticator: authenticator,
 		Queue:         backends.queue,
 		Store:         backends.store,
+		Catalog:       catalog.Resolver{},
 		Retention:     config.JobRetention,
 		Validate:      validateJobRequest,
 	}
@@ -133,16 +134,16 @@ func run() error {
 }
 
 func validateJobRequest(request jobs.Request) error {
-	model, ok := catalog.Find(request.Model)
+	model, ok := catalog.Find(request.ModelCatalog)
 	if !ok {
-		return fmt.Errorf("unknown model %q", request.Model)
+		return fmt.Errorf("unknown model catalog %q", request.ModelCatalog)
 	}
 	translation := request.Translation
 	if !model.SupportsLanguage(translation.TargetLanguage) {
-		return fmt.Errorf("model does not support target language %q", translation.TargetLanguage)
+		return fmt.Errorf("model catalog does not support target language %q", translation.TargetLanguage)
 	}
 	if translation.SourceLanguage != "" && !model.SupportsLanguage(translation.SourceLanguage) {
-		return fmt.Errorf("model does not support source language %q", translation.SourceLanguage)
+		return fmt.Errorf("model catalog does not support source language %q", translation.SourceLanguage)
 	}
 	if _, err := model.BuildInput(translation); err != nil {
 		return err

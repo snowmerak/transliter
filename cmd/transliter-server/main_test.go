@@ -96,7 +96,7 @@ func TestBuildDefaultBackends(t *testing.T) {
 	}
 
 	now := time.Now().UTC()
-	job, err := jobs.New("alice", jobs.Request{Model: "hymt2-1.8b"}, now, time.Hour)
+	job, err := jobs.New("alice", jobs.Request{ModelCatalog: "hymt2-1.8b"}, now, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,8 +159,8 @@ func TestBuildSQLiteStoreBackend(t *testing.T) {
 
 func TestValidateJobRequest(t *testing.T) {
 	err := validateJobRequest(jobs.Request{
-		Model:   "hymt2-1.8b",
-		Profile: transliter.ProfileOfficial,
+		ModelCatalog: "hymt2-1.8b",
+		Profile:      transliter.ProfileOfficial,
 		Translation: transliter.TranslationRequest{
 			Source:         "hello",
 			SourceLanguage: transliter.LanguageEnglish,

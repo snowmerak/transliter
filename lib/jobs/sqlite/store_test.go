@@ -20,8 +20,8 @@ func TestOwnerHistoryUpdateAndExpiration(t *testing.T) {
 
 	now := time.Date(2026, 7, 25, 10, 0, 0, 0, time.UTC)
 	alice, err := jobs.New("alice", jobs.Request{
-		Model:   "hymt2-1.8b",
-		Profile: transliter.ProfileOfficial,
+		ModelCatalog: "hymt2-1.8b",
+		Profile:      transliter.ProfileOfficial,
 		Translation: transliter.TranslationRequest{
 			Source:         "hello",
 			SourceLanguage: transliter.LanguageEnglish,
@@ -32,7 +32,7 @@ func TestOwnerHistoryUpdateAndExpiration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bob, err := jobs.New("bob", jobs.Request{Model: "b"}, now.Add(time.Second), time.Hour)
+	bob, err := jobs.New("bob", jobs.Request{ModelCatalog: "b"}, now.Add(time.Second), time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,12 +59,12 @@ func TestOwnerHistoryUpdateAndExpiration(t *testing.T) {
 	if err := store.Update(context.Background(), alice.ID, jobs.Update{
 		Status: jobs.StatusSucceeded,
 		Result: &jobs.Result{
-			Translation:   "안녕하세요",
-			ProviderModel: "local",
-			FinishReason:  "stop",
-			PromptTokens:  3,
-			OutputTokens:  2,
-			TotalTokens:   5,
+			Translation:  "안녕하세요",
+			Model:        "local",
+			FinishReason: "stop",
+			PromptTokens: 3,
+			OutputTokens: 2,
+			TotalTokens:  5,
 		},
 		UpdatedAt:   completed,
 		StartedAt:   &started,
@@ -118,11 +118,11 @@ func TestFractionalCreatedAtOrdering(t *testing.T) {
 	early := base.Add(100 * time.Millisecond) // same wall second as late if truncated poorly
 	late := base.Add(900 * time.Millisecond)
 
-	first, err := jobs.New("alice", jobs.Request{Model: "a"}, early, time.Hour)
+	first, err := jobs.New("alice", jobs.Request{ModelCatalog: "a"}, early, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := jobs.New("alice", jobs.Request{Model: "b"}, late, time.Hour)
+	second, err := jobs.New("alice", jobs.Request{ModelCatalog: "b"}, late, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +178,7 @@ func TestMemoryDSN(t *testing.T) {
 	}
 	defer store.Close()
 
-	job, err := jobs.New("alice", jobs.Request{Model: "m"}, time.Now().UTC(), time.Hour)
+	job, err := jobs.New("alice", jobs.Request{ModelCatalog: "m"}, time.Now().UTC(), time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}

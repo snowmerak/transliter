@@ -30,6 +30,9 @@ source text, model-server credentials, or owner credentials.
 | `POST` | `/v1/jobs` | required | Validate and enqueue a translation |
 | `GET` | `/v1/jobs/{id}` | required | Read one job owned by the API key |
 | `GET` | `/v1/jobs?limit=20&before=<time>` | required | List previous jobs for the API key |
+| `GET` | `/v1/model-catalogs` | public | List built-in prompt adapters |
+| `GET` | `/v1/model-catalogs/{id}` | public | Catalog detail, profiles, options |
+| `POST` | `/v1/model-catalogs/{id}/preview` | public | Dry-run BuildInput + Options |
 | `GET` | `/healthz` | public | Process health |
 | `GET` | `/openapi.json` | public | OpenAPI 3.1 document as JSON |
 | `GET` | `/openapi.yaml` | public | OpenAPI 3.1 document as YAML |
@@ -53,6 +56,23 @@ version. The documentation endpoints are public; using the interactive request
 client against job endpoints still requires one of the documented API-key
 security schemes.
 
+## Model catalogs
+
+Built-in prompt adapters are discoverable without authentication:
+
+```http
+GET /v1/model-catalogs
+GET /v1/model-catalogs/{id}
+POST /v1/model-catalogs/{id}/preview
+```
+
+- List/detail expose descriptor metadata, languages, profiles, generation
+  options, and `capabilities.auxiliary_fields` (glossary/style/audience/...).
+- Preview runs `BuildInput` + `Options` only. It does not call an inference
+  server. Hy-MT2 returns plain string message content; TranslateGemma returns
+  structured content parts.
+
+
 ## Create a job
 
 ```http
@@ -61,8 +81,8 @@ Authorization: Bearer client-secret
 Content-Type: application/json
 
 {
-  "model": "hymt2-30b-a3b",
-  "provider_model": "hy-mt2-local",
+  "model_catalog": "hymt2-30b-a3b",
+  "model": "hy-mt2-local",
   "profile": "deterministic",
   "translation": {
     "source": "The service is ready.",
@@ -73,8 +93,9 @@ Content-Type: application/json
 }
 ```
 
-`provider_model` is optional. When omitted, `TRANSLITER_API_MODEL` supplies the
-model name understood by the inference server.
+`model_catalog` selects the built-in prompt/options adapter. `model` is the
+inference-server name/alias and is optional; when omitted, `TRANSLITER_API_MODEL`
+supplies it.
 
 Successful submission returns `202 Accepted` and a `Location` header:
 
@@ -83,8 +104,8 @@ Successful submission returns `202 Accepted` and a `Location` header:
   "id": "52d14df7b8b5a7d231b2295790994332",
   "status": "queued",
   "request": {
-    "model": "hymt2-30b-a3b",
-    "provider_model": "hy-mt2-local",
+    "model_catalog": "hymt2-30b-a3b",
+    "model": "hy-mt2-local",
     "profile": "deterministic",
     "translation": {
       "source": "The service is ready.",

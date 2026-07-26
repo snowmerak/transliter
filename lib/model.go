@@ -28,14 +28,14 @@ const (
 // GenerationOptions is backend-neutral. Nil pointer fields are intentionally
 // unspecified and must be omitted by an inference adapter.
 type GenerationOptions struct {
-	Temperature       *float64
-	TopP              *float64
-	TopK              *int
-	RepetitionPenalty *float64
-	DoSample          *bool
-	MaxOutputTokens   int
-	Stop              []string
-	Provenance        OptionProvenance
+	Temperature       *float64         `json:"temperature,omitempty"`
+	TopP              *float64         `json:"top_p,omitempty"`
+	TopK              *int             `json:"top_k,omitempty"`
+	RepetitionPenalty *float64         `json:"repetition_penalty,omitempty"`
+	DoSample          *bool            `json:"do_sample,omitempty"`
+	MaxOutputTokens   int              `json:"max_output_tokens,omitempty"`
+	Stop              []string         `json:"stop,omitempty"`
+	Provenance        OptionProvenance `json:"provenance,omitempty"`
 }
 
 // Descriptor contains model discovery metadata suitable for a CLI or API.
@@ -53,6 +53,13 @@ type Capabilities struct {
 	RequiresSourceLanguage bool
 	StructuredUserContent  bool
 	MaxInputTokens         int
+	// AuxiliaryFields lists which TranslationRequest extras BuildInput accepts.
+	// Omitted/false means the model rejects that field.
+	Glossary               bool
+	Style                  bool
+	Audience               bool
+	TranslatableAttributes bool
+	Delimiters             bool
 }
 
 // Role is a chat message role.

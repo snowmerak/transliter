@@ -14,6 +14,7 @@ import (
 
 	"github.com/snowmerak/transliter/lib/jobs"
 	"github.com/snowmerak/transliter/lib/jobs/memory"
+	"github.com/snowmerak/transliter/models/catalog"
 )
 
 type processorFunc func(context.Context, jobs.Job) (jobs.Result, error)
@@ -35,6 +36,7 @@ func TestAuthenticatedAsynchronousJobLifecycleAndHistory(t *testing.T) {
 		Authenticator: authenticator,
 		Queue:         backend,
 		Store:         backend,
+		Catalog:       catalog.Resolver{},
 		Retention:     24 * time.Hour,
 	}
 	routes, err := handler.Routes()
@@ -60,7 +62,7 @@ func TestAuthenticatedAsynchronousJobLifecycleAndHistory(t *testing.T) {
 	}()
 
 	createBody := `{
-		"model":"hymt2-1.8b",
+		"model_catalog":"hymt2-1.8b",
 		"translation":{
 			"source":"Hello",
 			"source_language":"English",

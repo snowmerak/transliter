@@ -10,6 +10,7 @@ import (
 
 	"github.com/snowmerak/transliter/lib/jobs"
 	"github.com/snowmerak/transliter/lib/jobs/memory"
+	"github.com/snowmerak/transliter/models/catalog"
 	"gopkg.in/yaml.v3"
 )
 
@@ -25,6 +26,7 @@ func TestDocumentationEndpointsArePublicAndConsistent(t *testing.T) {
 		Authenticator: authenticator,
 		Queue:         backend,
 		Store:         backend,
+		Catalog:       catalog.Resolver{},
 	}).Routes()
 	if err != nil {
 		t.Fatal(err)
@@ -96,6 +98,9 @@ func assertDocumentRoutes(t *testing.T, document map[string]any) {
 	for _, path := range []string{
 		"/v1/jobs",
 		"/v1/jobs/{id}",
+		"/v1/model-catalogs",
+		"/v1/model-catalogs/{id}",
+		"/v1/model-catalogs/{id}/preview",
 		"/healthz",
 		"/openapi.json",
 		"/openapi.yaml",

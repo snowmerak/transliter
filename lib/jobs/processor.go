@@ -26,26 +26,26 @@ func NewTranslationProcessor(models ModelResolver, client inference.Client) *Tra
 }
 
 func (processor *TranslationProcessor) Process(ctx context.Context, job Job) (Result, error) {
-	model, ok := processor.models.Find(job.Request.Model)
+	catalogModel, ok := processor.models.Find(job.Request.ModelCatalog)
 	if !ok {
-		return Result{}, fmt.Errorf("unknown model %q", job.Request.Model)
+		return Result{}, fmt.Errorf("unknown model catalog %q", job.Request.ModelCatalog)
 	}
 	request := job.Request.Translation
-	if !model.SupportsLanguage(request.TargetLanguage) {
+	if !catalogModel.SupportsLanguage(request.TargetLanguage) {
 		return Result{}, fmt.Errorf(
-			"model %q does not support target language %q",
-			job.Request.Model,
+			"model catalog %q does not support target language %q",
+			job.Request.ModelCatalog,
 			request.TargetLanguage,
 		)
 	}
-	if request.SourceLanguage != "" && !model.SupportsLanguage(request.SourceLanguage) {
+	if request.SourceLanguage != "" && !catalogModel.SupportsLanguage(request.SourceLanguage) {
 		return Result{}, fmt.Errorf(
-			"model %q does not support source language %q",
-			job.Request.Model,
+			"model catalog %q does not support source language %q",
+			job.Request.ModelCatalog,
 			request.SourceLanguage,
 		)
 	}
-	input, err := model.BuildInput(request)
+	input, err := catalogModel.BuildInput(request)
 	if err != nil {
 		return Result{}, err
 	}
@@ -53,24 +53,24 @@ func (processor *TranslationProcessor) Process(ctx context.Context, job Job) (Re
 	if profile == "" {
 		profile = transliter.ProfileOfficial
 	}
-	options, err := model.Options(profile)
+	options, err := catalogModel.Options(profile)
 	if err != nil {
 		return Result{}, err
 	}
 	response, err := processor.client.Generate(
 		ctx,
-		inference.NewRequest(job.Request.ProviderModel, input, options),
+		inference.NewRequest(job.Request.Model, input, options),
 	)
 	if err != nil {
 		return Result{}, err
 	}
 	usage := response.TokenUsage()
 	return Result{
-		Translation:   response.OutputText(),
-		ProviderModel: response.ProviderModel(),
-		FinishReason:  response.FinishReason(),
-		PromptTokens:  usage.PromptTokens,
-		OutputTokens:  usage.CompletionTokens,
-		TotalTokens:   usage.TotalTokens,
+		Translation:  response.OutputText(),
+		Model:        response.ProviderModel(),
+		FinishReason: response.FinishReason(),
+		PromptTokens: usage.PromptTokens,
+		OutputTokens: usage.CompletionTokens,
+		TotalTokens:  usage.TotalTokens,
 	}, nil
 }

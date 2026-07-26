@@ -113,6 +113,7 @@ func TestIntegrationLanguageBench(t *testing.T) {
 		Authenticator: authenticator,
 		Queue:         backends.queue,
 		Store:         backends.store,
+		Catalog:       catalog.Resolver{},
 		Retention:     time.Hour,
 		Validate:      validateJobRequest,
 	}
@@ -229,8 +230,8 @@ func runBenchJob(
 	}
 
 	createBody := fmt.Sprintf(`{
+		"model_catalog": %q,
 		"model": %q,
-		"provider_model": %q,
 		"profile": "official",
 		"translation": {
 			"source": %q,

@@ -27,19 +27,22 @@ const (
 )
 
 type Request struct {
-	Model         transliter.ModelID            `json:"model"`
-	ProviderModel string                        `json:"provider_model,omitempty"`
-	Profile       transliter.OptionProfile      `json:"profile,omitempty"`
-	Translation   transliter.TranslationRequest `json:"translation"`
+	// ModelCatalog is the built-in prompt/options adapter id (e.g. hymt2-1.8b).
+	ModelCatalog transliter.ModelID `json:"model_catalog"`
+	// Model is the inference-server model name/alias (e.g. Hy-MT2-1.8B).
+	// When empty, TRANSLITER_API_MODEL / client default is used.
+	Model       string                        `json:"model,omitempty"`
+	Profile     transliter.OptionProfile      `json:"profile,omitempty"`
+	Translation transliter.TranslationRequest `json:"translation"`
 }
 
 type Result struct {
-	Translation   string `json:"translation"`
-	ProviderModel string `json:"provider_model,omitempty"`
-	FinishReason  string `json:"finish_reason,omitempty"`
-	PromptTokens  int    `json:"prompt_tokens,omitempty"`
-	OutputTokens  int    `json:"output_tokens,omitempty"`
-	TotalTokens   int    `json:"total_tokens,omitempty"`
+	Translation  string `json:"translation"`
+	Model        string `json:"model,omitempty"`
+	FinishReason string `json:"finish_reason,omitempty"`
+	PromptTokens int    `json:"prompt_tokens,omitempty"`
+	OutputTokens int    `json:"output_tokens,omitempty"`
+	TotalTokens  int    `json:"total_tokens,omitempty"`
 }
 
 type Job struct {

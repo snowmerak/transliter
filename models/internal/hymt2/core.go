@@ -24,7 +24,14 @@ func (core Core) Descriptor() transliter.Descriptor {
 func (Core) Capabilities() transliter.Capabilities {
 	kinds := make([]transliter.PromptKind, len(transliter.PromptKinds))
 	copy(kinds, transliter.PromptKinds)
-	return transliter.Capabilities{PromptKinds: kinds}
+	return transliter.Capabilities{
+		PromptKinds:            kinds,
+		Glossary:               true,
+		Style:                  true,
+		Audience:               true,
+		TranslatableAttributes: true,
+		Delimiters:             true,
+	}
 }
 
 func (Core) SupportsLanguage(language transliter.Language) bool {

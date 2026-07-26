@@ -12,11 +12,11 @@ import (
 func TestOwnerHistoryAndExpiration(t *testing.T) {
 	backend := New(2)
 	now := time.Now().UTC()
-	alice, err := jobs.New("alice", jobs.Request{Model: "a"}, now, time.Hour)
+	alice, err := jobs.New("alice", jobs.Request{ModelCatalog: "a"}, now, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
-	bob, err := jobs.New("bob", jobs.Request{Model: "b"}, now.Add(time.Second), time.Hour)
+	bob, err := jobs.New("bob", jobs.Request{ModelCatalog: "b"}, now.Add(time.Second), time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}

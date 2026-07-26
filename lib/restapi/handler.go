@@ -24,6 +24,7 @@ type Handler struct {
 	Authenticator jobs.Authenticator
 	Queue         jobs.Queue
 	Store         jobs.Store
+	Catalog       Catalog
 	Retention     time.Duration
 	MaxBodyBytes  int64
 	Now           func() time.Time
@@ -52,6 +53,9 @@ func (handler *Handler) Routes() (http.Handler, error) {
 		return nil, err
 	}
 	mux.HandleFunc("GET /healthz", handler.health)
+	mux.HandleFunc("GET /v1/model-catalogs", handler.listModelCatalogs)
+	mux.HandleFunc("GET /v1/model-catalogs/{id}", handler.getModelCatalog)
+	mux.HandleFunc("POST /v1/model-catalogs/{id}/preview", handler.previewModelCatalog)
 	mux.HandleFunc("POST /v1/jobs", handler.auth(handler.create))
 	mux.HandleFunc("GET /v1/jobs", handler.auth(handler.list))
 	mux.HandleFunc("GET /v1/jobs/{id}", handler.auth(handler.get))
@@ -166,8 +170,8 @@ func (handler *Handler) list(
 }
 
 func validateRequest(request jobs.Request) error {
-	if request.Model == "" {
-		return fmt.Errorf("model must not be empty")
+	if request.ModelCatalog == "" {
+		return fmt.Errorf("model_catalog must not be empty")
 	}
 	return transliter.ValidateTranslationRequest(request.Translation)
 }

@@ -22,6 +22,8 @@ servers:
 tags:
   - name: Jobs
     description: Authenticated asynchronous translation jobs
+  - name: Model catalogs
+    description: Built-in prompt adapters, capabilities, and dry-run preview
   - name: System
     description: Process health and API documentation
 paths:
@@ -44,8 +46,8 @@ paths:
               text:
                 summary: English to Korean with Hy-MT2
                 value:
-                  model: hymt2-30b-a3b
-                  provider_model: hy-mt2-local
+                  model_catalog: hymt2-30b-a3b
+                  model: hy-mt2-local
                   profile: deterministic
                   translation:
                     source: The service is ready.
@@ -136,6 +138,74 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+  /v1/model-catalogs:
+    get:
+      tags: [Model catalogs]
+      operationId: listModelCatalogs
+      summary: List built-in model catalogs
+      description: Returns discovery metadata for every compiled prompt adapter.
+      security: []
+      responses:
+        "200":
+          description: Model catalog list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelCatalogList"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /v1/model-catalogs/{id}:
+    get:
+      tags: [Model catalogs]
+      operationId: getModelCatalog
+      summary: Get one model catalog
+      description: Returns capabilities, languages, profiles, and generation options.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ModelCatalogIDParam"
+      responses:
+        "200":
+          description: Model catalog detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelCatalogDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /v1/model-catalogs/{id}/preview:
+    post:
+      tags: [Model catalogs]
+      operationId: previewModelCatalog
+      summary: Preview BuildInput and Options
+      description: |
+        Renders the model input and generation options for a translation request
+        without calling an inference server.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ModelCatalogIDParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModelCatalogPreviewRequest"
+      responses:
+        "200":
+          description: Rendered model input and options
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelCatalogPreviewResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /healthz:
     get:
       tags: [System]
@@ -203,6 +273,13 @@ components:
       type: apiKey
       in: header
       name: X-API-Key
+  parameters:
+    ModelCatalogIDParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/ModelCatalogID"
   responses:
     BadRequest:
       description: Invalid JSON, query parameter, or request shape
@@ -238,11 +315,11 @@ components:
     CreateJobRequest:
       type: object
       additionalProperties: false
-      required: [model, translation]
+      required: [model_catalog, translation]
       properties:
+        model_catalog:
+          $ref: "#/components/schemas/ModelCatalogID"
         model:
-          $ref: "#/components/schemas/ModelID"
-        provider_model:
           type: string
           description: Model name or alias understood by the inference server
         profile:
@@ -278,8 +355,9 @@ components:
           type: array
           items:
             type: string
-    ModelID:
+    ModelCatalogID:
       type: string
+      description: Built-in prompt/options adapter id
       enum:
         - hymt2-1.8b
         - hymt2-7b
@@ -353,8 +431,9 @@ components:
       properties:
         translation:
           type: string
-        provider_model:
+        model:
           type: string
+          description: Inference-server model name that produced the result
         finish_reason:
           type: string
         prompt_tokens:
@@ -374,6 +453,157 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Job"
+    ModelCatalogList:
+      type: object
+      required: [model_catalogs]
+      properties:
+        model_catalogs:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModelCatalogSummary"
+    ModelCatalogSummary:
+      type: object
+      required: [id, family, capabilities, profiles, languages]
+      properties:
+        id:
+          $ref: "#/components/schemas/ModelCatalogID"
+        family:
+          type: string
+        parameters:
+          type: string
+        repository:
+          type: string
+        gguf_repository:
+          type: string
+        capabilities:
+          $ref: "#/components/schemas/ModelCatalogCapabilities"
+        profiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/OptionProfile"
+        languages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Language"
+    ModelCatalogDetail:
+      allOf:
+        - $ref: "#/components/schemas/ModelCatalogSummary"
+        - type: object
+          required: [profile_options]
+          properties:
+            profile_options:
+              type: object
+              additionalProperties:
+                $ref: "#/components/schemas/GenerationOptions"
+    ModelCatalogCapabilities:
+      type: object
+      required:
+        - prompt_kinds
+        - requires_source_language
+        - structured_user_content
+        - auxiliary_fields
+      properties:
+        prompt_kinds:
+          type: array
+          items:
+            $ref: "#/components/schemas/PromptKind"
+        requires_source_language:
+          type: boolean
+        structured_user_content:
+          type: boolean
+        max_input_tokens:
+          type: integer
+          minimum: 0
+        auxiliary_fields:
+          $ref: "#/components/schemas/ModelCatalogAuxiliaryFields"
+    ModelCatalogAuxiliaryFields:
+      type: object
+      required: [glossary, style, audience, translatable_attributes, delimiters]
+      properties:
+        glossary:
+          type: boolean
+        style:
+          type: boolean
+        audience:
+          type: boolean
+        translatable_attributes:
+          type: boolean
+        delimiters:
+          type: boolean
+    GenerationOptions:
+      type: object
+      properties:
+        temperature:
+          type: number
+        top_p:
+          type: number
+        top_k:
+          type: integer
+        repetition_penalty:
+          type: number
+        do_sample:
+          type: boolean
+        max_output_tokens:
+          type: integer
+        stop:
+          type: array
+          items:
+            type: string
+        provenance:
+          type: string
+    ModelCatalogPreviewRequest:
+      type: object
+      additionalProperties: false
+      required: [translation]
+      properties:
+        profile:
+          $ref: "#/components/schemas/OptionProfile"
+        translation:
+          $ref: "#/components/schemas/TranslationRequest"
+    ModelCatalogPreviewResponse:
+      type: object
+      required: [model_catalog, profile, options, input]
+      properties:
+        model_catalog:
+          $ref: "#/components/schemas/ModelCatalogID"
+        profile:
+          $ref: "#/components/schemas/OptionProfile"
+        options:
+          $ref: "#/components/schemas/GenerationOptions"
+        input:
+          $ref: "#/components/schemas/ModelInput"
+    ModelInput:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModelMessage"
+    ModelMessage:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          const: user
+        content:
+          description: Plain string for Hy-MT2, or structured parts for TranslateGemma
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: object
+                required: [type, text]
+                properties:
+                  type:
+                    type: string
+                  text:
+                    type: string
+                  source_lang_code:
+                    type: string
+                  target_lang_code:
+                    type: string
     ErrorResponse:
       type: object
       required: [error]

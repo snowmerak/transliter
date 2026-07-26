@@ -19,7 +19,7 @@ func (function processorFunc) Process(ctx context.Context, job jobs.Job) (jobs.R
 func TestSchedulerProcessesQueuedJob(t *testing.T) {
 	backend := memory.New(4)
 	job, err := jobs.New("alice", jobs.Request{
-		Model: "test-model",
+		ModelCatalog: "test-model",
 		Translation: transliter.TranslationRequest{
 			Source:         "hello",
 			TargetLanguage: transliter.LanguageKorean,

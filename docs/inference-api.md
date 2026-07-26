@@ -85,8 +85,8 @@ provider-specific rules to a model package.
 `1m30s`.
 
 The model name is the name expected by the server. It is not required to equal
-the stable `transliter.ModelID`. For example, an LM Studio model identifier or
-an Ollama model tag can be selected independently from the prompt integration.
+the stable catalog id (`model_catalog` / `transliter.ModelID`). For example, an
+oMLX or LM Studio identifier can be selected independently from the prompt adapter.
 
 ## Configuration precedence
 
