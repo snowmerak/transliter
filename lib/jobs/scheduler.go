@@ -52,6 +52,10 @@ func (scheduler *Scheduler) runWorker(ctx context.Context) {
 			scheduler.report(fmt.Errorf("receive job: %w", err))
 			continue
 		}
+		if delivery == nil {
+			scheduler.report(fmt.Errorf("receive job: nil delivery"))
+			continue
+		}
 		scheduler.handle(ctx, delivery)
 	}
 }

@@ -123,22 +123,31 @@ func (queue *Queue) Enqueue(ctx context.Context, jobID string) error {
 }
 
 func (queue *Queue) Receive(ctx context.Context) (jobs.Delivery, error) {
-	batch, err := queue.consumer.Fetch(1, jetstream.FetchContext(ctx))
-	if err != nil {
-		return nil, err
-	}
-	for message := range batch.Messages() {
-		jobID := string(message.Data())
-		if jobID == "" {
-			_ = message.Term()
-			continue
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
 		}
-		return &delivery{message: message, jobID: jobID}, nil
+		batch, err := queue.consumer.Fetch(1, jetstream.FetchContext(ctx))
+		if err != nil {
+			return nil, err
+		}
+		for message := range batch.Messages() {
+			jobID := string(message.Data())
+			if jobID == "" {
+				_ = message.Term()
+				continue
+			}
+			return &delivery{message: message, jobID: jobID}, nil
+		}
+		if err := batch.Error(); err != nil {
+			return nil, err
+		}
+		// Fetch can complete with neither a message nor an error. Do not return
+		// (nil, nil) — the scheduler treats a nil error as a real delivery.
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 	}
-	if err := batch.Error(); err != nil {
-		return nil, err
-	}
-	return nil, ctx.Err()
 }
 
 type delivery struct {
