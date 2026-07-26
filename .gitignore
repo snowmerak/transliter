@@ -1,3 +1,106 @@
+# --- Go build / test ---
 *.exe
+*.exe~
+*.dll
+*.so
+*.dylib
 *.test
-coverage.out
+*.out
+/coverage.out
+/coverage.html
+*.coverprofile
+profile.cov
+cpu.prof
+mem.prof
+*.pprof
+__debug_bin*
+__debug_bin
+
+# Built binaries in repo root or common output dirs
+/transliter
+/transliter-server
+/cmd/transliter-server/transliter-server
+/bin/
+/dist/
+/build/
+/out/
+/tmp/
+/temp/
+
+# Go workspace files (local multi-module overrides)
+go.work
+go.work.sum
+
+# --- Runtime data (zero-config server defaults) ---
+# Default SQLite store: TRANSLITER_SQLITE_PATH=transliter-jobs.db
+transliter-jobs.db
+transliter-jobs.db-*
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+
+# Embedded / file-backed NATS JetStream (TRANSLITER_NATS_STORE_DIR)
+/nats/
+/nats-store/
+/transliter-nats/
+/jetstream/
+**/jetstream/
+
+# --- Secrets & local env ---
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+id_rsa
+id_rsa.pub
+credentials.json
+service-account*.json
+
+# --- Logs & dumps ---
+*.log
+logs/
+tg_payload.json
+tg_err.txt
+*.dump
+core
+core.*
+
+# --- IDE / editors ---
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# --- OS junk ---
+.DS_Store
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.stackdump
+
+# --- Optional local tooling ---
+.direnv/
+.venv/
+venv/
+node_modules/
+.cache/
