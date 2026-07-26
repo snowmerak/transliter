@@ -122,6 +122,7 @@ func TestIntegrationLanguageBench(t *testing.T) {
 	}
 	server := httptest.NewServer(routes)
 	defer server.Close()
+	t.Cleanup(func() { freeOMLXModelSlot(t) })
 
 	var samples []benchSample
 	modelsRun := 0
@@ -131,6 +132,11 @@ func TestIntegrationLanguageBench(t *testing.T) {
 		catalogModel       string
 		providerCandidates []string
 	}{}, integrationModelCases...)
+	if os.Getenv("TRANSLITER_INTEGRATION_HY_EXTENDED") == "1" {
+		cases = append(cases, hyExtendedDiagnosticCases...)
+	} else {
+		t.Log("extended Hy bench cases skipped; set TRANSLITER_INTEGRATION_HY_EXTENDED=1 to include")
+	}
 	if os.Getenv("TRANSLITER_INTEGRATION_TRANSLATEGEMMA") == "1" {
 		cases = append(cases, translateGemmaDiagnosticCases...)
 	} else {
@@ -146,8 +152,11 @@ func TestIntegrationLanguageBench(t *testing.T) {
 		modelsRun++
 
 		t.Run(tc.name, func(t *testing.T) {
-			// First request after switching catalog/provider. No unload API —
-			// weights may already be resident from a prior process or /v1/models.
+			// Unload every resident model first so first_request includes cold load
+			// and large models do not OOM against leftover weights.
+			freeOMLXModelSlot(t)
+			t.Cleanup(func() { freeOMLXModelSlot(t) })
+
 			first := runBenchJob(t, server.URL, tc.catalogModel, providerModel, "Korean", "first", 0)
 			samples = append(samples, first)
 			t.Logf(
@@ -352,7 +361,7 @@ func printBenchSummary(t *testing.T, samples []benchSample) {
 	}
 	sort.Strings(models)
 
-	t.Log("=== FIRST REQUEST (per model; unload not forced — may already be hot) ===")
+	t.Log("=== FIRST REQUEST (after oMLX unload of all loaded models) ===")
 	t.Logf("%-20s %-28s %10s %10s %s", "catalog", "provider", "infer", "wall", "out")
 	for _, model := range models {
 		s, ok := firstByModel[model]

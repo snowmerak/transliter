@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,12 +22,12 @@ import (
 )
 
 const (
-	integrationBaseURL = "http://macmini:1234/v1"
+	integrationBaseURL = "http://macmini:11888/v1"
 	integrationAPIKey  = "integration-test-key"
 )
 
-// Default live cases. Keep green for go test ./... when macmini is up.
-// TranslateGemma is opt-in: see TestIntegrationTranslateGemmaDiagnostics.
+// Default live cases for go test ./... when macmini:11888 is up.
+// Extended sizes / TranslateGemma are opt-in diagnostics.
 var integrationModelCases = []struct {
 	name               string
 	catalogModel       string
@@ -35,22 +36,31 @@ var integrationModelCases = []struct {
 	{
 		name:               "hymt2-1.8b",
 		catalogModel:       "hymt2-1.8b",
-		providerCandidates: []string{"hy-mt2-1.8b"},
+		providerCandidates: []string{"Hy-MT2-1.8B", "hy-mt2-1.8b"},
 	},
 	{
 		name:               "hymt2-7b",
 		catalogModel:       "hymt2-7b",
-		providerCandidates: []string{"hy-mt2-7b"},
-	},
-	{
-		name:               "hymt2-30b-a3b",
-		catalogModel:       "hymt2-30b-a3b",
-		providerCandidates: []string{"hy-mt2-30b-a3b-mlx", "hy-mt2-30b-a3b"},
+		providerCandidates: []string{"Hy-MT2-7B-bf16", "hy-mt2-7b"},
 	},
 }
 
-// Opt-in only (TRANSLITER_INTEGRATION_TRANSLATEGEMMA=1). macmini currently
-// rejects TranslateGemma structured chat-completions with HTTP 400.
+// Opt-in (TRANSLITER_INTEGRATION_HY_EXTENDED=1). 30B currently fails to load on
+// macmini:11888 without trust_remote_code for hy_v3.py.
+var hyExtendedDiagnosticCases = []struct {
+	name               string
+	catalogModel       string
+	providerCandidates []string
+}{
+	{
+		name:               "hymt2-30b-a3b",
+		catalogModel:       "hymt2-30b-a3b",
+		providerCandidates: []string{"Hy-MT2-30B-A3B-MLX-4bit", "hy-mt2-30b-a3b-mlx", "hy-mt2-30b-a3b"},
+	},
+}
+
+// Opt-in only (TRANSLITER_INTEGRATION_TRANSLATEGEMMA=1).
+// On macmini:1234 structured chat-completions returned HTTP 400; re-check on 11888.
 var translateGemmaDiagnosticCases = []struct {
 	name               string
 	catalogModel       string
@@ -59,17 +69,17 @@ var translateGemmaDiagnosticCases = []struct {
 	{
 		name:               "translategemma-4b",
 		catalogModel:       "translategemma-4b",
-		providerCandidates: []string{"translategemma-4b-it", "translategemma-4b"},
+		providerCandidates: []string{"translategemma-4b-it-8bit", "translategemma-4b-it", "translategemma-4b"},
 	},
 	{
 		name:               "translategemma-12b",
 		catalogModel:       "translategemma-12b",
-		providerCandidates: []string{"translategemma-12b-it", "translategemma-12b"},
+		providerCandidates: []string{"translategemma-12b-it-8bit", "translategemma-12b-it", "translategemma-12b"},
 	},
 	{
 		name:               "translategemma-27b",
 		catalogModel:       "translategemma-27b",
-		providerCandidates: []string{"translategemma-27b-it", "translategemma-27b"},
+		providerCandidates: []string{"translategemma-27b-it-8bit", "translategemma-27b-it", "translategemma-27b"},
 	},
 }
 
@@ -135,10 +145,98 @@ func resolveProviderModel(available map[string]struct{}, candidates []string) (s
 	return "", false
 }
 
+func integrationOrigin() string {
+	return strings.TrimSuffix(integrationBaseURL, "/v1")
+}
+
+func unloadOMLXModel(t *testing.T, modelID string) {
+	t.Helper()
+	if strings.TrimSpace(modelID) == "" {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	endpoint := integrationOrigin() + "/admin/api/models/" + url.PathEscape(modelID) + "/unload"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(nil))
+	if err != nil {
+		t.Fatalf("create unload request for %s: %v", modelID, err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	response, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("unload %s: %v", modelID, err)
+	}
+	defer response.Body.Close()
+	body, _ := io.ReadAll(response.Body)
+	text := strings.TrimSpace(string(body))
+	switch response.StatusCode {
+	case http.StatusOK:
+		t.Logf("omlx unload %s status=%d body=%s", modelID, response.StatusCode, text)
+		return
+	case http.StatusBadRequest:
+		// Idempotent: already unloaded.
+		if strings.Contains(text, "Model not loaded:") {
+			t.Logf("omlx unload %s already unloaded: %s", modelID, text)
+			return
+		}
+	}
+	t.Fatalf("unload %s status=%d body=%s", modelID, response.StatusCode, text)
+}
+
+func listLoadedOMLXModels(t *testing.T) []string {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, integrationOrigin()+"/admin/api/models", nil)
+	if err != nil {
+		t.Fatalf("create admin models request: %v", err)
+	}
+	response, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("list admin models: %v", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("list admin models status=%d body=%s", response.StatusCode, strings.TrimSpace(string(body)))
+	}
+
+	var payload struct {
+		Models []struct {
+			ID     string `json:"id"`
+			Loaded bool   `json:"loaded"`
+		} `json:"models"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode admin models: %v", err)
+	}
+
+	loaded := make([]string, 0)
+	for _, model := range payload.Models {
+		if model.Loaded && strings.TrimSpace(model.ID) != "" {
+			loaded = append(loaded, model.ID)
+		}
+	}
+	return loaded
+}
+
+// freeOMLXModelSlot unloads every currently loaded model so the next provider
+// can cold-load without blowing memory limits.
+func freeOMLXModelSlot(t *testing.T) {
+	t.Helper()
+	for _, modelID := range listLoadedOMLXModels(t) {
+		unloadOMLXModel(t, modelID)
+	}
+}
 func TestIntegrationTranslationJobDefaultBackends(t *testing.T) {
 	available := requireIntegrationModels(t)
 	baseURL, cleanup := startIntegrationStack(t)
 	defer cleanup()
+	t.Cleanup(func() { freeOMLXModelSlot(t) })
 
 	ran := 0
 	for _, tc := range integrationModelCases {
@@ -150,11 +248,45 @@ func TestIntegrationTranslationJobDefaultBackends(t *testing.T) {
 		}
 		ran++
 		t.Run(tc.name, func(t *testing.T) {
+			freeOMLXModelSlot(t)
+			t.Cleanup(func() { freeOMLXModelSlot(t) })
 			runIntegrationTranslationJob(t, baseURL, tc.catalogModel, providerModel)
 		})
 	}
 	if ran == 0 {
 		t.Fatal("no catalog provider models available on inference server")
+	}
+}
+
+// Opt-in diagnostics for Hy sizes that are advertised but may fail to load.
+// Enable with TRANSLITER_INTEGRATION_HY_EXTENDED=1.
+func TestIntegrationHyExtendedDiagnostics(t *testing.T) {
+	if os.Getenv("TRANSLITER_INTEGRATION_HY_EXTENDED") != "1" {
+		t.Skip("set TRANSLITER_INTEGRATION_HY_EXTENDED=1 to run extended Hy diagnostics")
+	}
+
+	available := requireIntegrationModels(t)
+	baseURL, cleanup := startIntegrationStack(t)
+	defer cleanup()
+	t.Cleanup(func() { freeOMLXModelSlot(t) })
+
+	ran := 0
+	for _, tc := range hyExtendedDiagnosticCases {
+		tc := tc
+		providerModel, ok := resolveProviderModel(available, tc.providerCandidates)
+		if !ok {
+			t.Logf("skip %s: provider not mounted (candidates=%v on %s)", tc.name, tc.providerCandidates, integrationBaseURL)
+			continue
+		}
+		ran++
+		t.Run(tc.name, func(t *testing.T) {
+			freeOMLXModelSlot(t)
+			t.Cleanup(func() { freeOMLXModelSlot(t) })
+			runIntegrationTranslationJob(t, baseURL, tc.catalogModel, providerModel)
+		})
+	}
+	if ran == 0 {
+		t.Fatal("no extended Hy provider models mounted on inference server")
 	}
 }
 
@@ -170,6 +302,7 @@ func TestIntegrationTranslateGemmaDiagnostics(t *testing.T) {
 	available := requireIntegrationModels(t)
 	baseURL, cleanup := startIntegrationStack(t)
 	defer cleanup()
+	t.Cleanup(func() { freeOMLXModelSlot(t) })
 
 	ran := 0
 	for _, tc := range translateGemmaDiagnosticCases {
@@ -181,6 +314,8 @@ func TestIntegrationTranslateGemmaDiagnostics(t *testing.T) {
 		}
 		ran++
 		t.Run(tc.name, func(t *testing.T) {
+			freeOMLXModelSlot(t)
+			t.Cleanup(func() { freeOMLXModelSlot(t) })
 			runIntegrationTranslationJob(t, baseURL, tc.catalogModel, providerModel)
 		})
 	}
@@ -346,6 +481,7 @@ func runIntegrationTranslationJob(t *testing.T, baseURL, catalogModel, providerM
 		time.Sleep(200 * time.Millisecond)
 	}
 }
+
 
 func integrationAPIRequest(
 	t *testing.T,
