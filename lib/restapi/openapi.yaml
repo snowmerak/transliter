@@ -4,9 +4,10 @@ info:
   version: 1.0.0
   summary: Asynchronous translation jobs
   description: |
-    Authenticates callers, queues translation jobs, runs them through a
-    user-managed OpenAI-compatible model server, and retains owner-scoped job
-    history.
+    Queues translation jobs, runs them through a user-managed OpenAI-compatible
+    model server, and retains owner-scoped job history. Inbound API keys are
+    optional: when TRANSLITER_SERVER_API_KEYS is unset, job endpoints are open
+    and jobs are owned by anonymous.
 
     Queue delivery is at-least-once. A model call can be repeated if a worker
     stops while a running job is being processed.
@@ -21,7 +22,7 @@ servers:
     description: Current server
 tags:
   - name: Jobs
-    description: Authenticated asynchronous translation jobs
+    description: Asynchronous translation jobs (API key optional)
   - name: Model catalogs
     description: Built-in prompt adapters, capabilities, and dry-run preview
   - name: System
@@ -34,6 +35,7 @@ paths:
       summary: Create a translation job
       description: Validates, stores, and enqueues a translation job.
       security:
+        - {}
         - bearerAuth: []
         - apiKeyAuth: []
       requestBody:
@@ -78,8 +80,9 @@ paths:
     get:
       tags: [Jobs]
       operationId: listTranslationJobs
-      summary: List previous jobs for the authenticated owner
+      summary: List previous jobs for the caller
       security:
+        - {}
         - bearerAuth: []
         - apiKeyAuth: []
       parameters:
@@ -117,6 +120,7 @@ paths:
       summary: Get one translation job
       description: Cross-owner reads return 404 without revealing job existence.
       security:
+        - {}
         - bearerAuth: []
         - apiKeyAuth: []
       parameters:
@@ -268,11 +272,12 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
-      description: Client API key in the Authorization header
+      description: Optional client API key when TRANSLITER_SERVER_API_KEYS is configured
     apiKeyAuth:
       type: apiKey
       in: header
       name: X-API-Key
+      description: Optional client API key when TRANSLITER_SERVER_API_KEYS is configured
   parameters:
     ModelCatalogIDParam:
       name: id

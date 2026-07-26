@@ -8,9 +8,9 @@ vLLM, or another compatible endpoint must already be running.
 
 ## Lifecycle
 
-1. Authenticate the inbound API key.
-2. Resolve the key to a stable owner ID.
-3. Validate the model, language pair, prompt kind, and generation profile.
+1. Optionally authenticate the inbound API key when keys are configured.
+2. Resolve the caller to a stable owner ID (`anonymous` when open).
+3. Validate the model catalog, language pair, prompt kind, and generation profile.
 4. Allocate a cryptographically random 128-bit job ID.
 5. Store the queued job with an expiration time.
 6. enqueue only the job ID.
@@ -27,9 +27,9 @@ source text, model-server credentials, or owner credentials.
 
 | Method | Path | Authentication | Purpose |
 | --- | --- | --- | --- |
-| `POST` | `/v1/jobs` | required | Validate and enqueue a translation |
-| `GET` | `/v1/jobs/{id}` | required | Read one job owned by the API key |
-| `GET` | `/v1/jobs?limit=20&before=<time>` | required | List previous jobs for the API key |
+| `POST` | `/v1/jobs` | optional* | Validate and enqueue a translation |
+| `GET` | `/v1/jobs/{id}` | optional* | Read one job owned by the caller |
+| `GET` | `/v1/jobs?limit=20&before=<time>` | optional* | List previous jobs for the caller |
 | `GET` | `/v1/model-catalogs` | public | List built-in prompt adapters |
 | `GET` | `/v1/model-catalogs/{id}` | public | Catalog detail, profiles, options |
 | `POST` | `/v1/model-catalogs/{id}/preview` | public | Dry-run BuildInput + Options |
@@ -38,8 +38,9 @@ source text, model-server credentials, or owner credentials.
 | `GET` | `/openapi.yaml` | public | OpenAPI 3.1 document as YAML |
 | `GET` | `/docs` | public | Interactive Scalar API reference |
 
-Use either `Authorization: Bearer <key>` or `X-API-Key: <key>`. Authorization
-headers take precedence.
+When `TRANSLITER_SERVER_API_KEYS` is set, use either `Authorization: Bearer <key>`
+or `X-API-Key: <key>`. Authorization headers take precedence. When unset, job
+endpoints are open and jobs are owned by `anonymous`.
 
 Cross-owner reads return `404`, rather than revealing that another owner's job
 exists.
@@ -136,13 +137,14 @@ The two credentials have different purposes:
 | `TRANSLITER_SERVER_API_KEYS` | Authenticating callers of transliter |
 | `TRANSLITER_API_KEY` | Authenticating transliter to the model server |
 
-`TRANSLITER_SERVER_API_KEYS` must be a JSON object:
+`TRANSLITER_SERVER_API_KEYS` is optional. When set it must be a JSON object:
 
 ```text
 {"alice":"client-secret-a","team-b":"client-secret-b"}
 ```
 
-Both values are environment-only. There are no flags for credentials.
+When unset or empty, inbound job APIs do not require a key. Both credential
+variables are environment-only. There are no flags for credentials.
 
 ## Queue and store matrix
 

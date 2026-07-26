@@ -130,6 +130,92 @@ func TestAuthenticatedAsynchronousJobLifecycleAndHistory(t *testing.T) {
 	}
 }
 
+func TestOpenJobAccessWithoutAPIKeys(t *testing.T) {
+	authenticator, err := jobs.NewStaticAuthenticator(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	backend := memory.New(8)
+	handler := &Handler{
+		Authenticator: authenticator,
+		Queue:         backend,
+		Store:         backend,
+		Catalog:       catalog.Resolver{},
+		Retention:     24 * time.Hour,
+	}
+	routes, err := handler.Routes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(routes)
+	defer server.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	schedulerDone := make(chan error, 1)
+	scheduler := &jobs.Scheduler{
+		Queue: backend,
+		Store: backend,
+		Processor: processorFunc(func(context.Context, jobs.Job) (jobs.Result, error) {
+			return jobs.Result{Translation: "안녕하세요"}, nil
+		}),
+	}
+	go func() { schedulerDone <- scheduler.Run(ctx) }()
+	defer func() {
+		cancel()
+		<-schedulerDone
+	}()
+
+	createBody := `{
+		"model_catalog":"hymt2-1.8b",
+		"translation":{
+			"source":"Hello",
+			"source_language":"English",
+			"target_language":"Korean"
+		}
+	}`
+	create := apiRequest(t, http.MethodPost, server.URL+"/v1/jobs", "", createBody)
+	if create.StatusCode != http.StatusAccepted {
+		t.Fatalf("create status=%d body=%s", create.StatusCode, readBody(t, create))
+	}
+	var created jobs.Job
+	decodeBody(t, create, &created)
+	if created.ID == "" {
+		t.Fatal("expected job id")
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	var completed jobs.Job
+	for {
+		response := apiRequest(t, http.MethodGet, server.URL+"/v1/jobs/"+created.ID, "", "")
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("get status=%d body=%s", response.StatusCode, readBody(t, response))
+		}
+		decodeBody(t, response, &completed)
+		if completed.Status == jobs.StatusSucceeded {
+			if completed.Result == nil || completed.Result.Translation != "안녕하세요" {
+				t.Fatalf("unexpected result: %+v", completed.Result)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("job did not complete: %+v", completed)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	list := apiRequest(t, http.MethodGet, server.URL+"/v1/jobs", "", "")
+	if list.StatusCode != http.StatusOK {
+		t.Fatalf("list status=%d body=%s", list.StatusCode, readBody(t, list))
+	}
+	var history struct {
+		Jobs []jobs.Job `json:"jobs"`
+	}
+	decodeBody(t, list, &history)
+	if len(history.Jobs) != 1 || history.Jobs[0].ID != created.ID {
+		t.Fatalf("anonymous history: %+v", history)
+	}
+}
+
 func apiRequest(
 	t *testing.T,
 	method, url, key, body string,

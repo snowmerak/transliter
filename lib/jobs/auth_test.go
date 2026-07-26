@@ -38,3 +38,29 @@ func TestStaticAuthenticatorFromEnvDoesNotExposeKeyInError(t *testing.T) {
 		t.Fatal("API key leaked through parse error")
 	}
 }
+
+func TestStaticAuthenticatorOpenMode(t *testing.T) {
+	authenticator, err := NewStaticAuthenticator(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !authenticator.Open() {
+		t.Fatal("empty authenticator should be open")
+	}
+	principal, err := authenticator.Authenticate(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if principal.ID != AnonymousOwnerID {
+		t.Fatalf("principal = %+v", principal)
+	}
+
+	t.Setenv(EnvServerAPIKeys, "")
+	fromEnv, err := StaticAuthenticatorFromEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fromEnv.Open() {
+		t.Fatal("unset env should yield open authenticator")
+	}
+}

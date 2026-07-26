@@ -7,11 +7,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 )
 
 const EnvServerAPIKeys = "TRANSLITER_SERVER_API_KEYS"
 
 var ErrUnauthorized = fmt.Errorf("invalid API key")
+
+// AnonymousOwnerID is used when no server API keys are configured.
+const AnonymousOwnerID = "anonymous"
 
 type Principal struct {
 	ID string
@@ -31,6 +35,8 @@ type staticKey struct {
 }
 
 // NewStaticAuthenticator stores only SHA-256 key digests in memory.
+// An empty map enables open access: Authenticate accepts a missing key and
+// returns AnonymousOwnerID.
 func NewStaticAuthenticator(keysByOwner map[string]string) (*StaticAuthenticator, error) {
 	authenticator := &StaticAuthenticator{
 		keys: make([]staticKey, 0, len(keysByOwner)),
@@ -44,18 +50,16 @@ func NewStaticAuthenticator(keysByOwner map[string]string) (*StaticAuthenticator
 			digest:  sha256.Sum256([]byte(key)),
 		})
 	}
-	if len(authenticator.keys) == 0 {
-		return nil, fmt.Errorf("at least one server API key is required")
-	}
 	return authenticator, nil
 }
 
 // StaticAuthenticatorFromEnv expects a JSON object mapping owner IDs to API
-// keys. Raw keys remain environment-only and are not returned from this call.
+// keys. When unset or empty, the server runs without inbound API-key auth.
+// Raw keys remain environment-only and are not returned from this call.
 func StaticAuthenticatorFromEnv() (*StaticAuthenticator, error) {
-	raw := os.Getenv(EnvServerAPIKeys)
+	raw := strings.TrimSpace(os.Getenv(EnvServerAPIKeys))
 	if raw == "" {
-		return nil, fmt.Errorf("%s must be set", EnvServerAPIKeys)
+		return NewStaticAuthenticator(nil)
 	}
 	var keys map[string]string
 	if err := json.Unmarshal([]byte(raw), &keys); err != nil {
@@ -68,6 +72,12 @@ func (authenticator *StaticAuthenticator) Authenticate(
 	_ context.Context,
 	apiKey string,
 ) (Principal, error) {
+	if authenticator == nil || len(authenticator.keys) == 0 {
+		return Principal{ID: AnonymousOwnerID}, nil
+	}
+	if apiKey == "" {
+		return Principal{}, ErrUnauthorized
+	}
 	digest := sha256.Sum256([]byte(apiKey))
 	matchedOwner := ""
 	matched := 0
@@ -82,4 +92,9 @@ func (authenticator *StaticAuthenticator) Authenticate(
 		return Principal{}, ErrUnauthorized
 	}
 	return Principal{ID: matchedOwner}, nil
+}
+
+// Open reports whether inbound API-key authentication is disabled.
+func (authenticator *StaticAuthenticator) Open() bool {
+	return authenticator == nil || len(authenticator.keys) == 0
 }

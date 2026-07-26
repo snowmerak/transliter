@@ -321,8 +321,8 @@ GET  /openapi.yaml
 GET  /docs
 ```
 
-Inbound client keys are configured only through
-`TRANSLITER_SERVER_API_KEYS`, a JSON object mapping stable owner IDs to keys:
+Inbound client keys are optional. Set `TRANSLITER_SERVER_API_KEYS` to a JSON
+object mapping stable owner IDs to keys when you want authentication:
 
 ```bash
 export TRANSLITER_SERVER_API_KEYS='{"alice":"replace-with-a-secret"}'

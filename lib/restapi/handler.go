@@ -67,12 +67,12 @@ type authenticatedHandler func(http.ResponseWriter, *http.Request, jobs.Principa
 func (handler *Handler) auth(next authenticatedHandler) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		key := apiKey(request)
-		if key == "" {
-			writeError(writer, http.StatusUnauthorized, "missing API key")
-			return
-		}
 		principal, err := handler.Authenticator.Authenticate(request.Context(), key)
 		if err != nil {
+			if key == "" {
+				writeError(writer, http.StatusUnauthorized, "missing API key")
+				return
+			}
 			writeError(writer, http.StatusUnauthorized, "invalid API key")
 			return
 		}
