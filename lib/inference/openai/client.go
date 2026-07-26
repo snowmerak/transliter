@@ -31,9 +31,9 @@ func (value *APIError) Error() string {
 	return fmt.Sprintf("inference API returned HTTP %d%s: %s", value.StatusCode, details, value.Message)
 }
 
-// Client calls a user-managed OpenAI-compatible chat-completions endpoint.
+// Client calls a user-managed OpenAI-compatible generation endpoint.
 type Client struct {
-	endpoint        string
+	baseURL         string
 	defaultModel    string
 	apiKey          string
 	httpClient      *http.Client
@@ -56,7 +56,7 @@ func New(config Config) (*Client, error) {
 		httpClient = &http.Client{Timeout: config.Timeout}
 	}
 	return &Client{
-		endpoint:        config.BaseURL + "/chat/completions",
+		baseURL:         config.BaseURL,
 		defaultModel:    config.Model,
 		apiKey:          os.Getenv(EnvAPIKey),
 		httpClient:      httpClient,
@@ -66,7 +66,9 @@ func New(config Config) (*Client, error) {
 	}, nil
 }
 
-// Generate performs one non-streaming chat-completions request.
+// Generate performs one non-streaming generation request.
+// Plain chat uses /chat/completions. Structured TranslateGemma content is
+// rendered client-side and posted to /completions when the encoder routes there.
 func (client *Client) Generate(
 	ctx context.Context,
 	request inference.Request,
@@ -78,7 +80,13 @@ func (client *Client) Generate(
 	if err != nil {
 		return nil, err
 	}
-	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, client.endpoint, body)
+	path := chatCompletionsPath
+	if router, ok := client.requestEncoder.(RequestRouter); ok {
+		if routed := router.RequestPath(request, client.defaultModel); routed != "" {
+			path = routed
+		}
+	}
+	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, client.baseURL+path, body)
 	if err != nil {
 		return nil, fmt.Errorf("create inference HTTP request: %w", err)
 	}

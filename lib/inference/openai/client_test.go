@@ -126,20 +126,16 @@ func TestClientSendsChatCompletionAndDecodesResponse(t *testing.T) {
 }
 
 func TestClientPreservesStructuredMessageContent(t *testing.T) {
-	var content []map[string]any
+	var received map[string]any
+	var path string
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		var body struct {
-			Messages []struct {
-				Content []map[string]any `json:"content"`
-			} `json:"messages"`
-		}
-		if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
+		path = request.URL.Path
+		if err := json.NewDecoder(request.Body).Decode(&received); err != nil {
 			t.Errorf("decode request: %v", err)
 			writer.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		content = body.Messages[0].Content
-		_, _ = writer.Write([]byte(`{"choices":[{"message":{"content":"안녕"},"finish_reason":"stop"}]}`))
+		_, _ = writer.Write([]byte(`{"model":"translategemma","choices":[{"text":"안녕","finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":2,"total_tokens":12}}`))
 	}))
 	defer server.Close()
 	t.Setenv(EnvAPIKey, "")
@@ -161,12 +157,26 @@ func TestClientPreservesStructuredMessageContent(t *testing.T) {
 		}}},
 		transliter.GenerationOptions{},
 	)
-	if _, err := client.Generate(context.Background(), request); err != nil {
+	response, err := client.Generate(context.Background(), request)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if len(content) != 1 || content[0]["source_lang_code"] != "en" ||
-		content[0]["target_lang_code"] != "ko" {
-		t.Fatalf("structured content was not preserved: %+v", content)
+	if path != "/v1/completions" {
+		t.Fatalf("structured content path = %s, want /v1/completions", path)
+	}
+	prompt, _ := received["prompt"].(string)
+	if !strings.Contains(prompt, "source_lang_code: en") ||
+		!strings.Contains(prompt, "target_lang_code: ko") ||
+		!strings.Contains(prompt, "text: hello") ||
+		!strings.Contains(prompt, "<start_of_turn>model\n") {
+		t.Fatalf("structured completion prompt missing fields: %q", prompt)
+	}
+	stops, _ := received["stop"].([]any)
+	if len(stops) == 0 || stops[0] != "<end_of_turn>" {
+		t.Fatalf("expected <end_of_turn> stop, got %#v", received["stop"])
+	}
+	if response.OutputText() != "안녕" {
+		t.Fatalf("unexpected output: %q", response.OutputText())
 	}
 }
 

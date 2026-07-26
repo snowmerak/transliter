@@ -27,7 +27,7 @@ const (
 )
 
 // Default live cases for go test ./... when macmini:11888 is up.
-// Extended sizes / TranslateGemma are opt-in diagnostics.
+// Extended Hy sizes / TranslateGemma are opt-in (env-gated) smokes.
 var integrationModelCases = []struct {
 	name               string
 	catalogModel       string
@@ -60,7 +60,7 @@ var hyExtendedDiagnosticCases = []struct {
 }
 
 // Opt-in only (TRANSLITER_INTEGRATION_TRANSLATEGEMMA=1).
-// On macmini:1234 structured chat-completions returned HTTP 400; re-check on 11888.
+// Uses the openai client completions bypass for structured TranslateGemma parts.
 var translateGemmaDiagnosticCases = []struct {
 	name               string
 	catalogModel       string
@@ -69,12 +69,12 @@ var translateGemmaDiagnosticCases = []struct {
 	{
 		name:               "translategemma-4b",
 		catalogModel:       "translategemma-4b",
-		providerCandidates: []string{"translategemma-4b-it-8bit", "translategemma-4b-it", "translategemma-4b"},
+		providerCandidates: []string{"translategemma-4b-it-4bit", "translategemma-4b-it-8bit", "translategemma-4b-it", "translategemma-4b"},
 	},
 	{
 		name:               "translategemma-12b",
 		catalogModel:       "translategemma-12b",
-		providerCandidates: []string{"translategemma-12b-it-8bit", "translategemma-12b-it", "translategemma-12b"},
+		providerCandidates: []string{"translategemma-12b-it-8bit", "translategemma-12b-it-4bit", "translategemma-12b-it", "translategemma-12b"},
 	},
 	{
 		name:               "translategemma-27b",
@@ -290,13 +290,13 @@ func TestIntegrationHyExtendedDiagnostics(t *testing.T) {
 	}
 }
 
-// Opt-in diagnostics for TranslateGemma against macmini chat-completions.
+// Opt-in TranslateGemma smoke against macmini:11888.
 // Enable with TRANSLITER_INTEGRATION_TRANSLATEGEMMA=1.
-// Default suites stay green: LM Studio currently returns HTTP 400 for the
-// official structured content shape (reproduced with direct curl too).
-func TestIntegrationTranslateGemmaDiagnostics(t *testing.T) {
+// Structured parts are sent via /v1/completions (client-side chat template),
+// not /v1/chat/completions — oMLX rejects the custom content mapping on chat.
+func TestIntegrationTranslateGemmaSmoke(t *testing.T) {
 	if os.Getenv("TRANSLITER_INTEGRATION_TRANSLATEGEMMA") != "1" {
-		t.Skip("set TRANSLITER_INTEGRATION_TRANSLATEGEMMA=1 to run TranslateGemma diagnostics")
+		t.Skip("set TRANSLITER_INTEGRATION_TRANSLATEGEMMA=1 to run TranslateGemma smoke")
 	}
 
 	available := requireIntegrationModels(t)
