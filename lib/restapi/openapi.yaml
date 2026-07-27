@@ -23,6 +23,8 @@ servers:
 tags:
   - name: Jobs
     description: Asynchronous translation jobs (API key optional)
+  - name: Models
+    description: Upstream OpenAI-compatible provider model list proxy
   - name: Model catalogs
     description: Built-in prompt adapters, capabilities, and dry-run preview
   - name: System
@@ -208,6 +210,31 @@ paths:
           $ref: "#/components/responses/NotFound"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /v1/models:
+    get:
+      tags: [Models]
+      operationId: listProviderModels
+      summary: List upstream provider models
+      description: |
+        Proxies GET {provider}/v1/models from the configured OpenAI-compatible
+        inference server and returns the upstream status and body unchanged.
+      security: []
+      responses:
+        "200":
+          description: Upstream model list
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "502":
+          description: Provider models endpoint unreachable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
   /healthz:

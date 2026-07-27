@@ -25,6 +25,7 @@ type Handler struct {
 	Queue         jobs.Queue
 	Store         jobs.Store
 	Catalog       Catalog
+	Models        Models
 	Retention     time.Duration
 	MaxBodyBytes  int64
 	Now           func() time.Time
@@ -53,6 +54,7 @@ func (handler *Handler) Routes() (http.Handler, error) {
 		return nil, err
 	}
 	mux.HandleFunc("GET /healthz", handler.health)
+	mux.HandleFunc("GET /v1/models", handler.listModels)
 	mux.HandleFunc("GET /v1/model-catalogs", handler.listModelCatalogs)
 	mux.HandleFunc("GET /v1/model-catalogs/{id}", handler.getModelCatalog)
 	mux.HandleFunc("POST /v1/model-catalogs/{id}/preview", handler.previewModelCatalog)

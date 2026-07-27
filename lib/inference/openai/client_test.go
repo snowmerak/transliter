@@ -212,6 +212,70 @@ func TestClientReturnsSanitizedAPIError(t *testing.T) {
 	}
 }
 
+func TestClientListModelsProxiesUpstreamBody(t *testing.T) {
+	const apiKey = "models-key"
+	const body = `{"object":"list","data":[{"id":"local-model","object":"model"}]}`
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodGet {
+			t.Errorf("unexpected method: %s", request.Method)
+		}
+		if request.URL.Path != "/v1/models" {
+			t.Errorf("unexpected path: %s", request.URL.Path)
+		}
+		if request.Header.Get("Authorization") != "Bearer "+apiKey {
+			t.Errorf("unexpected authorization header")
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		writer.WriteHeader(http.StatusOK)
+		_, _ = writer.Write([]byte(body))
+	}))
+	defer server.Close()
+	t.Setenv(EnvAPIKey, apiKey)
+
+	client, err := New(Config{BaseURL: server.URL + "/v1", Model: "default-model"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	status, contentType, data, err := client.ListModels(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status != http.StatusOK {
+		t.Fatalf("status=%d", status)
+	}
+	if !strings.HasPrefix(contentType, "application/json") {
+		t.Fatalf("content type=%q", contentType)
+	}
+	if string(data) != body {
+		t.Fatalf("body=%s", data)
+	}
+}
+
+func TestClientListModelsForwardsNon2xx(t *testing.T) {
+	const body = `{"error":{"message":"no models"}}`
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		writer.WriteHeader(http.StatusUnauthorized)
+		_, _ = writer.Write([]byte(body))
+	}))
+	defer server.Close()
+
+	client, err := New(Config{BaseURL: server.URL + "/v1", Model: "default-model"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	status, _, data, err := client.ListModels(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status != http.StatusUnauthorized {
+		t.Fatalf("status=%d", status)
+	}
+	if string(data) != body {
+		t.Fatalf("body=%s", data)
+	}
+}
+
 func TestJSONRequestEncoderRequiresModelAndMessages(t *testing.T) {
 	encoder := JSONRequestEncoder{}
 	_, err := encoder.EncodeRequest(

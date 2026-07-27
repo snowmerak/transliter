@@ -87,6 +87,7 @@ func run() error {
 		Queue:         backends.queue,
 		Store:         backends.store,
 		Catalog:       catalog.Resolver{},
+		Models:        inferenceClient,
 		Retention:     config.JobRetention,
 		Validate:      validateJobRequest,
 	}

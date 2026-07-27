@@ -34,6 +34,7 @@ type ResponseDecoder interface {
 const (
 	chatCompletionsPath = "/chat/completions"
 	completionsPath     = "/completions"
+	modelsPath          = "/models"
 )
 
 // JSONRequestEncoder emits OpenAI-compatible request bodies.

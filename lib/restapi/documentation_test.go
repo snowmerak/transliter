@@ -98,6 +98,7 @@ func assertDocumentRoutes(t *testing.T, document map[string]any) {
 	for _, path := range []string{
 		"/v1/jobs",
 		"/v1/jobs/{id}",
+		"/v1/models",
 		"/v1/model-catalogs",
 		"/v1/model-catalogs/{id}",
 		"/v1/model-catalogs/{id}/preview",

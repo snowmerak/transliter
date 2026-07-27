@@ -120,6 +120,36 @@ func (client *Client) Generate(
 	return response, nil
 }
 
+// ListModels proxies GET {baseURL}/models and returns the upstream status,
+// content type, and body unchanged. Transport and read failures return an error;
+// non-2xx upstream responses are not treated as errors so callers can forward them.
+func (client *Client) ListModels(ctx context.Context) (int, string, []byte, error) {
+	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, client.baseURL+modelsPath, nil)
+	if err != nil {
+		return 0, "", nil, fmt.Errorf("create models HTTP request: %w", err)
+	}
+	httpRequest.Header.Set("Accept", "application/json")
+	if client.apiKey != "" {
+		httpRequest.Header.Set("Authorization", "Bearer "+client.apiKey)
+	}
+
+	httpResponse, err := client.httpClient.Do(httpRequest)
+	if err != nil {
+		return 0, "", nil, fmt.Errorf("call inference models API: %w", err)
+	}
+	defer httpResponse.Body.Close()
+
+	limited := io.LimitReader(httpResponse.Body, client.maxResponseSize+1)
+	data, err := io.ReadAll(limited)
+	if err != nil {
+		return 0, "", nil, fmt.Errorf("read inference models API response: %w", err)
+	}
+	if int64(len(data)) > client.maxResponseSize {
+		return 0, "", nil, fmt.Errorf("inference models API response exceeds %s bytes", strconv.FormatInt(client.maxResponseSize, 10))
+	}
+	return httpResponse.StatusCode, httpResponse.Header.Get("Content-Type"), data, nil
+}
+
 // IsAPIError reports whether err contains a server-side API error.
 func IsAPIError(err error) bool {
 	var apiError *APIError
