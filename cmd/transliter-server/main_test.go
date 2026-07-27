@@ -166,6 +166,7 @@ func TestValidateJobRequest(t *testing.T) {
 			SourceLanguage: transliter.LanguageEnglish,
 			TargetLanguage: transliter.LanguageKorean,
 			Kind:           transliter.PromptText,
+			Glossary:       map[string]string{},
 		},
 	})
 	if err != nil {

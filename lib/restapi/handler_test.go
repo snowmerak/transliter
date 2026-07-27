@@ -66,7 +66,8 @@ func TestAuthenticatedAsynchronousJobLifecycleAndHistory(t *testing.T) {
 		"translation":{
 			"source":"Hello",
 			"source_language":"English",
-			"target_language":"Korean"
+			"target_language":"Korean",
+			"glossary":{}
 		}
 	}`
 	create := apiRequest(t, http.MethodPost, server.URL+"/v1/jobs", "alice-key", createBody)
@@ -170,7 +171,8 @@ func TestOpenJobAccessWithoutAPIKeys(t *testing.T) {
 		"translation":{
 			"source":"Hello",
 			"source_language":"English",
-			"target_language":"Korean"
+			"target_language":"Korean",
+			"glossary":{}
 		}
 	}`
 	create := apiRequest(t, http.MethodPost, server.URL+"/v1/jobs", "", createBody)
@@ -213,6 +215,62 @@ func TestOpenJobAccessWithoutAPIKeys(t *testing.T) {
 	decodeBody(t, list, &history)
 	if len(history.Jobs) != 1 || history.Jobs[0].ID != created.ID {
 		t.Fatalf("anonymous history: %+v", history)
+	}
+}
+
+func TestCreateJobRequiresGlossaryObject(t *testing.T) {
+	authenticator, err := jobs.NewStaticAuthenticator(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	backend := memory.New(8)
+	handler := &Handler{
+		Authenticator: authenticator,
+		Queue:         backend,
+		Store:         backend,
+		Catalog:       catalog.Resolver{},
+		Retention:     24 * time.Hour,
+	}
+	routes, err := handler.Routes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(routes)
+	defer server.Close()
+
+	for _, body := range []string{
+		`{"model_catalog":"hymt2-1.8b","translation":{"source":"Hello","source_language":"English","target_language":"Korean"}}`,
+		`{"model_catalog":"hymt2-1.8b","translation":{"source":"Hello","source_language":"English","target_language":"Korean","glossary":null}}`,
+	} {
+		response := apiRequest(t, http.MethodPost, server.URL+"/v1/jobs", "", body)
+		if response.StatusCode != http.StatusUnprocessableEntity {
+			t.Fatalf("missing glossary status=%d body=%s for %s", response.StatusCode, readBody(t, response), body)
+		}
+		message := readBody(t, response)
+		if !strings.Contains(message, "glossary is required") {
+			t.Fatalf("expected glossary required error, got %s", message)
+		}
+	}
+
+	ok := apiRequest(t, http.MethodPost, server.URL+"/v1/jobs", "", `{
+		"model_catalog":"hymt2-1.8b",
+		"translation":{
+			"source":"Hello",
+			"source_language":"English",
+			"target_language":"Korean",
+			"glossary":{}
+		}
+	}`)
+	if ok.StatusCode != http.StatusAccepted {
+		t.Fatalf("empty glossary status=%d body=%s", ok.StatusCode, readBody(t, ok))
+	}
+	var created jobs.Job
+	decodeBody(t, ok, &created)
+	if created.Request.Translation.Glossary == nil {
+		t.Fatal("expected non-nil empty glossary on accepted job")
+	}
+	if len(created.Request.Translation.Glossary) != 0 {
+		t.Fatalf("expected empty glossary, got %+v", created.Request.Translation.Glossary)
 	}
 }
 

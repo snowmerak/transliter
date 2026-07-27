@@ -16,7 +16,6 @@ const (
 	PromptYAML          PromptKind = "yaml"
 	PromptHTMLXML       PromptKind = "html_xml"
 	PromptMixedCode     PromptKind = "mixed_code"
-	PromptGlossary      PromptKind = "glossary"
 	PromptStyleAudience PromptKind = "style_audience"
 	PromptSegmented     PromptKind = "segmented"
 )
@@ -29,7 +28,6 @@ var PromptKinds = []PromptKind{
 	PromptYAML,
 	PromptHTMLXML,
 	PromptMixedCode,
-	PromptGlossary,
 	PromptStyleAudience,
 	PromptSegmented,
 }
@@ -60,8 +58,6 @@ Preserve tag names, attribute names, element nesting, comments, entities, URLs, 
 Translate user-visible text nodes only, plus only the attributes explicitly listed below.`,
 	PromptMixedCode: `Preserve all source code, syntax, comments marked as non-translatable, identifiers, literals used as machine values, and formatting.
 Translate only natural-language prose and user-visible natural-language comments or strings.`,
-	PromptGlossary: `Apply the glossary exactly when the matching concept occurs.
-Do not change glossary target terms for style or fluency. Preserve terms not covered by the glossary according to the common contract.`,
 	PromptStyleAudience: `Keep the meaning complete while following the requested style and audience.
 Style requirements never override format preservation, glossary terms, placeholders, identifiers, or the translation-only boundary.`,
 	PromptSegmented: `Translate each segment independently while preserving every delimiter exactly.
@@ -74,7 +70,8 @@ type TranslationRequest struct {
 	TargetLanguage         Language          `json:"target_language"`
 	Kind                   PromptKind        `json:"kind,omitempty"`
 	SourceLanguage         Language          `json:"source_language,omitempty"`
-	Glossary               map[string]string `json:"glossary,omitempty"`
+	// Glossary is required. An empty map means no term constraints.
+	Glossary               map[string]string `json:"glossary"`
 	Style                  string            `json:"style,omitempty"`
 	Audience               string            `json:"audience,omitempty"`
 	TranslatableAttributes []string          `json:"translatable_attributes,omitempty"`
@@ -139,8 +136,8 @@ func ValidateTranslationRequest(request TranslationRequest) error {
 	if !ok {
 		return fmt.Errorf("unknown prompt kind %q", kind)
 	}
-	if kind == PromptGlossary && len(request.Glossary) == 0 {
-		return fmt.Errorf("glossary prompts require at least one glossary entry")
+	if request.Glossary == nil {
+		return fmt.Errorf("glossary is required")
 	}
 	if kind == PromptStyleAudience && request.Style == "" && request.Audience == "" {
 		return fmt.Errorf("style/audience prompts require style or audience")

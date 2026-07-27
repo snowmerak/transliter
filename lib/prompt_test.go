@@ -12,10 +12,9 @@ func TestEveryPromptKindBuildsStandalonePrompt(t *testing.T) {
 				Source:         "Translate me",
 				TargetLanguage: LanguageKorean,
 				Kind:           kind,
+				Glossary:       map[string]string{},
 			}
 			switch kind {
-			case PromptGlossary:
-				request.Glossary = map[string]string{"API": "API"}
 			case PromptStyleAudience:
 				request.Style = "formal"
 			case PromptSegmented:
@@ -44,6 +43,7 @@ func TestBuildPromptRendersLanguageAndOptions(t *testing.T) {
 		SourceLanguage:         LanguageEnglish,
 		TargetLanguage:         LanguageKorean,
 		Kind:                   PromptHTMLXML,
+		Glossary:               map[string]string{},
 		TranslatableAttributes: []string{"title"},
 	})
 	if err != nil {
@@ -61,7 +61,7 @@ func TestBuildPromptSortsGlossaryForStableOutput(t *testing.T) {
 	prompt, err := BuildPrompt(TranslationRequest{
 		Source:         "source",
 		TargetLanguage: LanguageKorean,
-		Kind:           PromptGlossary,
+		Kind:           PromptText,
 		Glossary:       map[string]string{"z": "Z", "a": "A"},
 	})
 	if err != nil {
@@ -72,18 +72,40 @@ func TestBuildPromptSortsGlossaryForStableOutput(t *testing.T) {
 	}
 }
 
+func TestBuildPromptOmitsEmptyGlossarySection(t *testing.T) {
+	prompt, err := BuildPrompt(TranslationRequest{
+		Source:         "source",
+		TargetLanguage: LanguageKorean,
+		Kind:           PromptText,
+		Glossary:       map[string]string{},
+	})
+	if err != nil {
+		t.Fatalf("BuildPrompt returned error: %v", err)
+	}
+	if strings.Contains(prompt, "Glossary (source => required target):") {
+		t.Fatalf("empty glossary should not render a glossary section:\n%s", prompt)
+	}
+}
+
 func TestBuildPromptRejectsMissingRequiredOptions(t *testing.T) {
 	tests := []TranslationRequest{
-		{Source: "x", TargetLanguage: LanguageKorean, Kind: PromptGlossary},
-		{Source: "x", TargetLanguage: LanguageKorean, Kind: PromptStyleAudience},
-		{Source: "x", TargetLanguage: LanguageKorean, Kind: PromptSegmented},
-		{Source: "x", TargetLanguage: Language(" "), Kind: PromptText},
-		{Source: "x", TargetLanguage: Language("Klingon"), Kind: PromptText},
+		{Source: "x", TargetLanguage: LanguageKorean, Kind: PromptText},
+		{Source: "x", TargetLanguage: LanguageKorean, Kind: PromptStyleAudience, Glossary: map[string]string{}},
+		{Source: "x", TargetLanguage: LanguageKorean, Kind: PromptSegmented, Glossary: map[string]string{}},
+		{Source: "x", TargetLanguage: Language(" "), Kind: PromptText, Glossary: map[string]string{}},
+		{Source: "x", TargetLanguage: Language("Klingon"), Kind: PromptText, Glossary: map[string]string{}},
 		{
 			Source:         "x",
 			SourceLanguage: Language("Klingon"),
 			TargetLanguage: LanguageKorean,
 			Kind:           PromptText,
+			Glossary:       map[string]string{},
+		},
+		{
+			Source:         "x",
+			TargetLanguage: LanguageKorean,
+			Kind:           PromptKind("glossary"),
+			Glossary:       map[string]string{},
 		},
 	}
 	for _, request := range tests {

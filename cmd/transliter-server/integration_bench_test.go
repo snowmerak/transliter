@@ -237,7 +237,8 @@ func runBenchJob(
 			"source": %q,
 			"source_language": "English",
 			"target_language": %q,
-			"kind": "text"
+			"kind": "text",
+			"glossary": {}
 		}
 	}`, catalogModel, providerModel, benchSource, targetLang)
 

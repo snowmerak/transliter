@@ -112,7 +112,7 @@
   },
   {
     "id": "glossary-enforcement",
-    "kind": "glossary",
+    "kind": "text",
     "source_language": "English",
     "target_language": "Korean",
     "source": "Create a pull request in the repository.",

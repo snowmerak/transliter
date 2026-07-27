@@ -427,7 +427,8 @@ func runIntegrationTranslationJob(t *testing.T, baseURL, catalogModel, providerM
 			"source": "The service is ready.",
 			"source_language": "English",
 			"target_language": "Korean",
-			"kind": "text"
+			"kind": "text",
+			"glossary": {}
 		}
 	}`, catalogModel, providerModel)
 	create := integrationAPIRequest(

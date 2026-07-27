@@ -88,6 +88,7 @@ func TestHyMT2BuildsPlainUserPrompt(t *testing.T) {
 		SourceLanguage: transliter.LanguageEnglish,
 		TargetLanguage: transliter.LanguageKorean,
 		Kind:           transliter.PromptText,
+		Glossary:       map[string]string{},
 	})
 	if err != nil {
 		t.Fatalf("BuildInput returned error: %v", err)
@@ -107,6 +108,7 @@ func TestTranslateGemmaBuildsOfficialStructuredContent(t *testing.T) {
 		SourceLanguage: transliter.LanguageEnglish,
 		TargetLanguage: transliter.LanguageKorean,
 		Kind:           transliter.PromptText,
+		Glossary:       map[string]string{},
 	})
 	if err != nil {
 		t.Fatalf("BuildInput returned error: %v", err)
@@ -138,6 +140,7 @@ func TestTranslateGemmaEnforcesOfficialTemplateLimits(t *testing.T) {
 		Source:         "Hello",
 		SourceLanguage: transliter.LanguageEnglish,
 		TargetLanguage: transliter.LanguageKorean,
+		Glossary:       map[string]string{},
 	}
 	tests := []transliter.TranslationRequest{
 		func() transliter.TranslationRequest {

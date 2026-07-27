@@ -89,7 +89,8 @@ Content-Type: application/json
     "source": "The service is ready.",
     "source_language": "English",
     "target_language": "Korean",
-    "kind": "text"
+    "kind": "text",
+    "glossary": {}
   }
 }
 ```
@@ -112,7 +113,8 @@ Successful submission returns `202 Accepted` and a `Location` header:
       "source": "The service is ready.",
       "source_language": "English",
       "target_language": "Korean",
-      "kind": "text"
+      "kind": "text",
+      "glossary": {}
     }
   },
   "created_at": "2026-07-25T10:00:00Z",

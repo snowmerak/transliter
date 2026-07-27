@@ -27,6 +27,7 @@ func TestOwnerHistoryUpdateAndExpiration(t *testing.T) {
 			SourceLanguage: transliter.LanguageEnglish,
 			TargetLanguage: transliter.LanguageKorean,
 			Kind:           transliter.PromptText,
+			Glossary:       map[string]string{},
 		},
 	}, now, time.Hour)
 	if err != nil {

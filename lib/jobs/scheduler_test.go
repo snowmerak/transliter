@@ -23,6 +23,7 @@ func TestSchedulerProcessesQueuedJob(t *testing.T) {
 		Translation: transliter.TranslationRequest{
 			Source:         "hello",
 			TargetLanguage: transliter.LanguageKorean,
+			Glossary:       map[string]string{},
 		},
 	}, time.Now(), time.Hour)
 	if err != nil {
@@ -89,6 +90,7 @@ func TestSchedulerIgnoresNilDelivery(t *testing.T) {
 		Translation: transliter.TranslationRequest{
 			Source:         "hello",
 			TargetLanguage: transliter.LanguageKorean,
+			Glossary:       map[string]string{},
 		},
 	}, time.Now(), time.Hour)
 	if err != nil {

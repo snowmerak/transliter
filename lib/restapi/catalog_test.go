@@ -128,7 +128,8 @@ func TestModelCatalogListDetailAndPreview(t *testing.T) {
 			"source":"The service is ready.",
 			"source_language":"English",
 			"target_language":"Korean",
-			"kind":"text"
+			"kind":"text",
+			"glossary":{}
 		}
 	}`
 	previewResponse, err := http.Post(

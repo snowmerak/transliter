@@ -96,6 +96,7 @@ func main() {
 		SourceLanguage: transliter.LanguageEnglish,
 		TargetLanguage: transliter.LanguageKorean,
 		Kind:           transliter.PromptText,
+		Glossary:       map[string]string{},
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -179,6 +180,7 @@ func main() {
 		SourceLanguage: transliter.LanguageEnglish,
 		TargetLanguage: transliter.LanguageKorean,
 		Kind:           transliter.PromptText,
+		Glossary:       map[string]string{},
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -244,10 +246,11 @@ third-party implementations.
 | `translategemma-27b` | `models/translategemma/v27b` | Structured part | Plain text |
 
 TranslateGemma's official chat template requires a source locale, a target
-locale, and source text as exactly one structured content part. Glossary,
-Markdown, style, and segmented prompts would require an unofficial manual
-prompt path, so the official integration rejects them instead of silently
-ignoring constraints.
+locale, and source text as exactly one structured content part. Non-empty
+glossaries, Markdown, style, and segmented prompts would require an unofficial
+manual prompt path, so the official integration rejects them instead of
+silently ignoring constraints. `translation.glossary` is still required on
+requests; use an empty object when no terms apply.
 
 ## Generation options
 

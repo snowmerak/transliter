@@ -14,12 +14,16 @@ the raw model response: no envelope, label, or explanation.
 | YAML | Supported | Not supported by official template |
 | HTML/XML | Supported | Not supported by official template |
 | Mixed code | Supported | Not supported by official template |
-| Glossary | Supported | Not supported by official template |
 | Style/audience | Supported | Not supported by official template |
 | Segmented input | Supported | Not supported by official template |
 
+| Auxiliary field | Hy-MT2 | TranslateGemma |
+| --- | --- | --- |
+| `glossary` (required; empty object allowed) | Supported | Empty only; non-empty rejected by official template |
+
 Unsupported requests return an error. The library does not silently discard
-constraints.
+constraints. Every `TranslationRequest` must include `glossary`; use `{}` when
+no terms apply.
 
 ## Plain text
 
@@ -156,11 +160,14 @@ feature.
 
 ## Glossary
 
+`glossary` is required on every request. An empty map means no term
+constraints. Non-empty entries are applied on top of any format kind:
+
 ```go
 request := transliter.TranslationRequest{
 	Source:         "Create a pull request in the repository.",
 	TargetLanguage: transliter.LanguageKorean,
-	Kind:           transliter.PromptGlossary,
+	Kind:           transliter.PromptText,
 	Glossary: map[string]string{
 		"pull request": "풀 리퀘스트",
 		"repository":   "저장소",
@@ -175,7 +182,8 @@ Expected output:
 ```
 
 The target glossary terms are mandatory, not stylistic suggestions.
-This is currently a Hy-MT2 integration feature.
+This is currently a Hy-MT2 integration feature. TranslateGemma's official
+template rejects non-empty glossaries.
 
 ## Style and audience
 
@@ -184,6 +192,7 @@ request := transliter.TranslationRequest{
 	Source:         "Restart the service now.",
 	TargetLanguage: transliter.LanguageKorean,
 	Kind:           transliter.PromptStyleAudience,
+	Glossary:       map[string]string{},
 	Style:          "formal operations manual",
 	Audience:       "site reliability engineers",
 }
