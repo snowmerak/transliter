@@ -53,6 +53,9 @@ func (handler *Handler) Routes() (http.Handler, error) {
 	if err := registerDocumentation(mux); err != nil {
 		return nil, err
 	}
+	if err := registerUI(mux); err != nil {
+		return nil, err
+	}
 	mux.HandleFunc("GET /healthz", handler.health)
 	mux.HandleFunc("GET /v1/models", handler.listModels)
 	mux.HandleFunc("GET /v1/model-catalogs", handler.listModelCatalogs)

@@ -37,6 +37,7 @@ source text, model-server credentials, or owner credentials.
 | `GET` | `/openapi.json` | public | OpenAPI 3.1 document as JSON |
 | `GET` | `/openapi.yaml` | public | OpenAPI 3.1 document as YAML |
 | `GET` | `/docs` | public | Interactive Scalar API reference |
+| `GET` | `/ui/` | public | Simple job console web UI |
 
 When `TRANSLITER_SERVER_API_KEYS` is set, use either `Authorization: Bearer <key>`
 or `X-API-Key: <key>`. Authorization headers take precedence. When unset, job

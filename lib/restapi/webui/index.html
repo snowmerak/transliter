@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>transliter · job console</title>
+    <link rel="stylesheet" href="./vendor/style.css" />
+    <link rel="stylesheet" href="./app.css" />
+  </head>
+  <body>
+    <div id="app" class="ui-shell">
+      <header class="ui-header">
+        <div class="mp-section-heading">
+          <p class="mp-eyebrow">transliter</p>
+          <h1 class="mp-heading--section">Job console</h1>
+          <p class="mp-text--secondary">
+            Queue a translation, poll status, inspect the raw result.
+          </p>
+        </div>
+        <div class="mp-button-row">
+          <a class="mp-button mp-button--ghost" href="/docs">API docs</a>
+          <a class="mp-button mp-button--ghost" href="/openapi.json">OpenAPI</a>
+        </div>
+      </header>
+
+      <div id="banner" class="ui-banner" hidden></div>
+
+      <div class="mp-grid mp-grid--wide mp-grid--start">
+        <section class="mp-card" aria-labelledby="compose-title">
+          <div class="mp-card__header">
+            <div>
+              <p class="mp-card__eyebrow">Compose</p>
+              <h2 id="compose-title" class="mp-card__title">New job</h2>
+            </div>
+          </div>
+
+          <form id="job-form" class="mp-form-grid">
+            <div class="mp-form-grid mp-form-grid--two">
+              <div class="mp-field">
+                <label class="mp-field__label" for="model-catalog">Model catalog</label>
+                <select id="model-catalog" class="mp-select" name="model_catalog" required></select>
+                <p class="mp-field__hint" id="catalog-hint">Loading catalogs…</p>
+              </div>
+
+              <div class="mp-field">
+                <label class="mp-field__label" for="model">Inference model</label>
+                <input
+                  id="model"
+                  class="mp-input"
+                  name="model"
+                  type="text"
+                  list="model-options"
+                  placeholder="Optional server alias"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <datalist id="model-options"></datalist>
+                <p class="mp-field__hint" id="model-hint">Loading provider models…</p>
+              </div>
+
+              <div class="mp-field">
+                <label class="mp-field__label" for="profile">Profile</label>
+                <select id="profile" class="mp-select" name="profile">
+                  <option value="official">official</option>
+                  <option value="deterministic">deterministic</option>
+                </select>
+              </div>
+
+              <div class="mp-field">
+                <label class="mp-field__label" for="kind">Prompt kind</label>
+                <select id="kind" class="mp-select" name="kind"></select>
+              </div>
+
+              <div class="mp-field">
+                <label class="mp-field__label" for="source-language">Source language</label>
+                <select id="source-language" class="mp-select" name="source_language"></select>
+              </div>
+
+              <div class="mp-field">
+                <label class="mp-field__label" for="target-language">Target language</label>
+                <select id="target-language" class="mp-select" name="target_language" required></select>
+              </div>
+            </div>
+
+            <div class="mp-field">
+              <label class="mp-field__label" for="source">Source</label>
+              <textarea
+                id="source"
+                class="mp-textarea"
+                name="source"
+                rows="10"
+                required
+                placeholder="Text to translate"
+              ></textarea>
+            </div>
+
+            <div class="mp-form-grid mp-form-grid--two">
+              <div class="mp-field">
+                <label class="mp-field__label" for="glossary">Glossary JSON</label>
+                <textarea
+                  id="glossary"
+                  class="mp-textarea"
+                  name="glossary"
+                  rows="6"
+                  spellcheck="false"
+                >{}</textarea>
+                <p class="mp-field__hint">Required object. Empty `{}` means no terms.</p>
+              </div>
+
+              <div class="mp-form-grid">
+                <div class="mp-field">
+                  <label class="mp-field__label" for="style">Style</label>
+                  <input id="style" class="mp-input" name="style" type="text" placeholder="Optional" />
+                </div>
+                <div class="mp-field">
+                  <label class="mp-field__label" for="audience">Audience</label>
+                  <input id="audience" class="mp-input" name="audience" type="text" placeholder="Optional" />
+                </div>
+                <div class="mp-field">
+                  <label class="mp-field__label" for="api-key">API key</label>
+                  <input
+                    id="api-key"
+                    class="mp-input"
+                    name="api_key"
+                    type="password"
+                    autocomplete="off"
+                    placeholder="Optional"
+                  />
+                  <p class="mp-field__hint">
+                    Leave empty when the server is open. Sent only if filled.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="mp-button-row">
+              <button id="submit" class="mp-button mp-button--primary" type="submit">
+                Queue job
+              </button>
+              <button id="refresh-history" class="mp-button mp-button--secondary" type="button">
+                Refresh history
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <aside class="ui-side">
+          <section class="mp-card" aria-labelledby="active-title">
+            <div class="mp-card__header">
+              <div>
+                <p class="mp-card__eyebrow">Active</p>
+                <h2 id="active-title" class="mp-card__title">Job status</h2>
+              </div>
+              <span id="status-badge" class="mp-badge mp-badge--pending">IDLE</span>
+            </div>
+            <dl class="ui-meta">
+              <div>
+                <dt>ID</dt>
+                <dd id="job-id" class="mp-text--muted">—</dd>
+              </div>
+              <div>
+                <dt>Updated</dt>
+                <dd id="job-updated" class="mp-text--muted">—</dd>
+              </div>
+            </dl>
+            <div class="ui-accordion" aria-live="polite">
+              <details class="ui-fold" open>
+                <summary class="ui-fold__summary">
+                  <span>Source</span>
+                  <span class="ui-fold__hint" id="job-source-meta">empty</span>
+                </summary>
+                <pre id="job-source" class="ui-result">No job yet.</pre>
+              </details>
+              <details class="ui-fold" open>
+                <summary class="ui-fold__summary">
+                  <span>Result</span>
+                  <span class="ui-fold__hint" id="job-result-meta">idle</span>
+                </summary>
+                <pre id="job-result" class="ui-result">No job yet.</pre>
+              </details>
+            </div>
+          </section>
+
+          <section class="mp-card" aria-labelledby="history-title">
+            <div class="mp-card__header">
+              <div>
+                <p class="mp-card__eyebrow">History</p>
+                <h2 id="history-title" class="mp-card__title">Recent jobs</h2>
+              </div>
+            </div>
+            <div id="history" class="ui-history">
+              <p class="mp-text--muted">No jobs loaded.</p>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

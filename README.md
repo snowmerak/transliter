@@ -322,6 +322,7 @@ GET  /healthz
 GET  /openapi.json
 GET  /openapi.yaml
 GET  /docs
+GET  /ui/
 ```
 
 Inbound client keys are optional. Set `TRANSLITER_SERVER_API_KEYS` to a JSON
@@ -345,6 +346,8 @@ See [application architecture](docs/architecture.md) for dependency boundaries.
 
 `/docs` serves an interactive Scalar reference backed by the same embedded
 OpenAPI 3.1 document available from `/openapi.json` and `/openapi.yaml`.
+`/ui/` serves a small Merak-styled job console. API key input is optional and
+only sent when filled.
 
 ## Tests
 

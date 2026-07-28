@@ -299,6 +299,31 @@ paths:
             text/html:
               schema:
                 type: string
+  /ui:
+    get:
+      tags: [System]
+      operationId: getWebUIRedirect
+      summary: Redirect to the job console UI
+      security: []
+      responses:
+        "301":
+          description: Redirects to /ui/
+  /ui/:
+    get:
+      tags: [System]
+      operationId: getWebUI
+      summary: Open the simple job console web UI
+      description: |
+        Public HTML console for composing translation jobs. API key input is
+        optional and only sent when filled. Glossary is required; use {}.
+      security: []
+      responses:
+        "200":
+          description: Job console HTML application
+          content:
+            text/html:
+              schema:
+                type: string
 components:
   securitySchemes:
     bearerAuth:

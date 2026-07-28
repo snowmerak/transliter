@@ -1,0 +1,8 @@
+merak-protocol-design-system
+Version: 0.2.5
+Source: https://www.npmjs.com/package/merak-protocol-design-system
+Repository: https://github.com/snowmerak/merakcss
+License: MIT (see LICENSE)
+
+Vendored CSS only (`style.css` and `styles/**`) for the transliter job console.
+No runtime npm dependency is required.

@@ -84,6 +84,56 @@ func TestDocumentationEndpointsArePublicAndConsistent(t *testing.T) {
 	if !strings.Contains(page, "url: '/openapi.json'") {
 		t.Fatal("Scalar page does not use the served OpenAPI document")
 	}
+
+	uiResponse, err := http.Get(server.URL + "/ui/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer uiResponse.Body.Close()
+	if uiResponse.StatusCode != http.StatusOK {
+		t.Fatalf("web UI returned %d", uiResponse.StatusCode)
+	}
+	uiHTML, err := io.ReadAll(uiResponse.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pageUI := string(uiHTML)
+	if !strings.Contains(pageUI, "Job console") {
+		t.Fatal("web UI page missing expected title copy")
+	}
+	if !strings.Contains(pageUI, "api-key") {
+		t.Fatal("web UI page missing optional API key field")
+	}
+
+	for _, asset := range []struct {
+		path        string
+		contentType string
+		snippet     string
+	}{
+		{path: "/ui/app.js", contentType: "javascript", snippet: "buildPayload"},
+		{path: "/ui/app.css", contentType: "text/css", snippet: ".ui-shell"},
+		{path: "/ui/vendor/style.css", contentType: "text/css", snippet: `./styles/tokens.css`},
+		{path: "/ui/vendor/styles/tokens.css", contentType: "text/css", snippet: "--mp-bg-canvas"},
+	} {
+		response, err := http.Get(server.URL + asset.path)
+		if err != nil {
+			t.Fatalf("GET %s: %v", asset.path, err)
+		}
+		body, err := io.ReadAll(response.Body)
+		response.Body.Close()
+		if err != nil {
+			t.Fatalf("read %s: %v", asset.path, err)
+		}
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("%s status=%d", asset.path, response.StatusCode)
+		}
+		if ct := response.Header.Get("Content-Type"); !strings.Contains(ct, asset.contentType) {
+			t.Fatalf("%s content-type=%q want substring %q", asset.path, ct, asset.contentType)
+		}
+		if !strings.Contains(string(body), asset.snippet) {
+			t.Fatalf("%s missing snippet %q", asset.path, asset.snippet)
+		}
+	}
 }
 
 func assertDocumentRoutes(t *testing.T, document map[string]any) {
@@ -106,6 +156,8 @@ func assertDocumentRoutes(t *testing.T, document map[string]any) {
 		"/openapi.json",
 		"/openapi.yaml",
 		"/docs",
+		"/ui",
+		"/ui/",
 	} {
 		if _, ok := paths[path]; !ok {
 			t.Errorf("OpenAPI path %q is missing", path)
